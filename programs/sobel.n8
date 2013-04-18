@@ -1,0 +1,263 @@
+RAM[255] = LD(IMG[0])
+RAM[255] = LD(IMG[1])
+RAM[255] = LD(IMG[2])
+RAM[255] = LD(IMG[3])
+
+# ======================== G1 ===========================
+# Top corners
+NEWS = LD(RAM[255])
+NEWS = LD(NORTH)
+LD(EAST) 
+RAM[0] = SUMC(WEST) # Add east and west together
+NEWS = LD(RAM[254])
+NEWS = LD(NORTH)
+LD(EAST) 
+RAM[1] = SUMC(WEST) # Add east and west together
+NEWS = LD(RAM[253])
+NEWS = LD(NORTH)
+LD(EAST) 
+RAM[2] = SUMC(WEST) # Add east and west together
+NEWS = LD(RAM[252])
+NEWS = LD(NORTH)
+LD(EAST) 
+RAM[3] = SUMC(WEST) # Add east and west together
+RAM[4] = LDCARRY
+
+# Add Top (shifted up 1)
+NEWS = LD(RAM[255])
+LD(RAM[1])
+RAM[1] = SUMC(NORTH)
+NEWS = LD(RAM[254])
+LD(RAM[2])
+RAM[2] = SUMC(NORTH)
+NEWS = LD(RAM[253])
+LD(RAM[3])
+RAM[3] = SUMC(NORTH)
+NEWS = LD(RAM[254])
+LDCARRY
+X = SUMC(RAM[4])
+RAM[4] = LD(X)
+RAM[5] = LDCARRY
+
+# Bottom corners
+NEWS = LD(RAM[255])
+NEWS = LD(SOUTH)
+LD(EAST) 
+RAM[6] = SUMC(WEST) # Add east and west together
+NEWS = LD(RAM[254])
+NEWS = LD(SOUTH)
+LD(EAST) 
+RAM[7] = SUMC(WEST) # Add east and west together
+NEWS = LD(RAM[253])
+NEWS = LD(SOUTH)
+LD(EAST) 
+RAM[8] = SUMC(WEST) # Add east and west together
+NEWS = LD(RAM[252])
+NEWS = LD(SOUTH)
+LD(EAST) 
+RAM[9] = SUMC(WEST) # Add east and west together
+RAM[10] = LDCARRY
+
+# Add Bottom (shifted up 1)
+NEWS = LD(RAM[255])
+LD(RAM[7])
+RAM[7] = SUMC(SOUTH)
+NEWS = LD(RAM[254])
+LD(RAM[8])
+RAM[8] = SUMC(SOUTH)
+NEWS = LD(RAM[253])
+LD(RAM[9])
+RAM[9] = SUMC(SOUTH)
+NEWS = LD(RAM[254])
+LDCARRY
+X = SUMC(RAM[10])
+RAM[10] = LD(X)
+RAM[11] = LDCARRY
+
+# Two's compliment - negate bottom
+Y = SET
+Z = CLR
+!LD(RAM[6])
+RAM[6] = SUMC(Y)
+!LD(RAM[7])
+RAM[7] = SUMC(Z)
+!LD(RAM[8])
+RAM[8] = SUMC(Z)
+!LD(RAM[9])
+RAM[9] = SUMC(Z)
+!LD(RAM[10])
+RAM[10] = SUMC(Z)
+!LD(RAM[11])
+RAM[11] = SUMC(Z)
+RAM[12] = LDCARRY
+
+LD(RAM[0])
+SUMC(RAM[6]) # Discard
+LD(RAM[1])
+SUMC(RAM[7]) # Discard
+LD(RAM[2])
+X = SUMC(RAM[8])
+RAM[0] = LD(X)
+LD(RAM[3])
+X = SUMC(RAM[9])
+RAM[1] = LD(X)
+LD(RAM[4])
+X = SUMC(RAM[10])
+RAM[2] = LD(X)
+LD(RAM[5])
+X = SUMC(RAM[11])
+RAM[3] = LD(X)
+CLR # Pad with a 0 for top
+SUMC(RAM[11])
+FLAG = !LDCARRY # If we DON'T generate a carry, than our result is negative!!
+
+# Absolute value
+!LD(RAM[0])
+RAM[16] = SUMC(Y)
+!LD(RAM[1])
+RAM[17] = SUMC(Z)
+!LD(RAM[2])
+RAM[18] = SUMC(Z)
+!LD(RAM[3])
+RAM[19] = SUMC(Z)
+
+FLAG = SET
+
+# ======================== G2 ===========================
+# West corners
+NEWS = LD(RAM[255])
+NEWS = LD(WEST)
+LD(SOUTH) 
+RAM[0] = SUMC(NORTH) # Add east and west together
+NEWS = LD(RAM[254])
+NEWS = LD(WEST)
+LD(SOUTH) 
+RAM[1] = SUMC(NORTH) # Add east and west together
+NEWS = LD(RAM[253])
+NEWS = LD(WEST)
+LD(SOUTH) 
+RAM[2] = SUMC(NORTH) # Add east and west together
+NEWS = LD(RAM[252])
+NEWS = LD(WEST)
+LD(SOUTH) 
+RAM[3] = SUMC(NORTH) # Add east and west together
+RAM[4] = LDCARRY
+
+# Add left (shifted up 1)
+NEWS = LD(RAM[255])
+LD(RAM[1])
+RAM[1] = SUMC(WEST)
+NEWS = LD(RAM[254])
+LD(RAM[2])
+RAM[2] = SUMC(WEST)
+NEWS = LD(RAM[253])
+LD(RAM[3])
+RAM[3] = SUMC(WEST)
+NEWS = LD(RAM[254])
+LDCARRY
+X = SUMC(RAM[4])
+RAM[4] = LD(X)
+RAM[5] = LDCARRY
+
+# East corners
+NEWS = LD(RAM[255])
+NEWS = LD(EAST)
+LD(SOUTH) 
+RAM[6] = SUMC(NORTH) # Add east and west together
+NEWS = LD(RAM[254])
+NEWS = LD(EAST)
+LD(SOUTH) 
+RAM[7] = SUMC(NORTH) # Add east and west together
+NEWS = LD(RAM[253])
+NEWS = LD(EAST)
+LD(SOUTH) 
+RAM[8] = SUMC(NORTH) # Add east and west together
+NEWS = LD(RAM[252])
+NEWS = LD(EAST)
+LD(SOUTH) 
+RAM[9] = SUMC(NORTH) # Add east and west together
+RAM[10] = LDCARRY
+
+# Add right (shifted up 1)
+NEWS = LD(RAM[255])
+LD(RAM[7])
+RAM[7] = SUMC(EAST)
+NEWS = LD(RAM[254])
+LD(RAM[8])
+RAM[8] = SUMC(EAST)
+NEWS = LD(RAM[253])
+LD(RAM[9])
+RAM[9] = SUMC(EAST)
+NEWS = LD(RAM[254])
+LDCARRY
+X = SUMC(RAM[10])
+RAM[10] = LD(X)
+RAM[11] = LDCARRY
+
+# Two's compliment - negate bottom
+Y = SET
+Z = CLR
+!LD(RAM[6])
+RAM[6] = SUMC(Y)
+!LD(RAM[7])
+RAM[7] = SUMC(Z)
+!LD(RAM[8])
+RAM[8] = SUMC(Z)
+!LD(RAM[9])
+RAM[9] = SUMC(Z)
+!LD(RAM[10])
+RAM[10] = SUMC(Z)
+!LD(RAM[11])
+RAM[11] = SUMC(Z)
+RAM[12] = LDCARRY
+
+LD(RAM[0])
+SUMC(RAM[6]) # Discard
+LD(RAM[1])
+SUMC(RAM[7]) # Discard
+LD(RAM[2])
+X = SUMC(RAM[8])
+RAM[0] = LD(X)
+LD(RAM[3])
+X = SUMC(RAM[9])
+RAM[1] = LD(X)
+LD(RAM[4])
+X = SUMC(RAM[10])
+RAM[2] = LD(X)
+LD(RAM[5])
+X = SUMC(RAM[11])
+RAM[3] = LD(X)
+CLR # Pad with a 0 for top
+SUMC(RAM[11])
+FLAG = !LDCARRY # If we DON'T generate a carry, than our result is negative!!
+
+# Absolute value
+!LD(RAM[0])
+RAM[32] = SUMC(Y)
+!LD(RAM[1])
+RAM[33] = SUMC(Z)
+!LD(RAM[2])
+RAM[34] = SUMC(Z)
+!LD(RAM[3])
+RAM[35] = SUMC(Z)
+
+FLAG = SET
+
+# Sum the two results together (apparently an approximation)
+LD(RAM[16])
+X = SUMC(RAM[32])
+RAM[255] = LD(X)
+LD(RAM[17])
+X = SUMC(RAM[33])
+RAM[254] = LD(X)
+LD(RAM[18])
+X = SUMC(RAM[34])
+RAM[253] = LD(X)
+LD(RAM[19])
+X = SUMC(RAM[35])
+RAM[252] = LD(X)
+
+IMG[0] = LD(RAM[255])
+IMG[1] = LD(RAM[254])
+IMG[2] = LD(RAM[253])
+IMG[3] = LD(RAM[252])

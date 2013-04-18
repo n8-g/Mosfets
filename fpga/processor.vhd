@@ -1,0 +1,320 @@
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    00:41:56 04/02/2013 
+-- Design Name: 
+-- Module Name:    processor - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use work.ALU_OP.ALL;
+use work.PE_CONST.ALL;
+use work.INSTR_WORD.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity processor is
+	port (
+		clk : in std_logic;
+		btn : in std_logic_vector(4 downto 0);
+		sw : in std_logic_vector(7 downto 0);
+		led : out std_logic_vector(7 downto 0);
+		memadr : out std_logic_vector(25 downto 0);
+		memdb : inout std_logic_vector(15 downto 0);
+		memoe : out std_logic;
+		memwr : out std_logic;
+		flashcs : out std_logic;
+		flashrp : out std_logic;
+		vgaRed : out std_logic_vector(2 downto 0);
+		vgaGreen : out std_logic_vector(2 downto 0);
+		vgaBlue : out std_logic_vector(2 downto 1);
+		Hsync : out std_logic;
+		Vsync : out std_logic
+		--seg : out std_logic_vector(7 downto 0);
+		--an : out std_logic_vector(3 downto 0)
+	);
+end processor;
+
+architecture Behavioral of processor is
+	constant lsize : integer := 4;
+	constant size : integer := 2**lsize;
+	constant pclen : integer := 9;
+	
+	constant LOAD : std_logic_vector(1 downto 0) := "10";
+	constant RUN : std_logic_vector(1 downto 0) := "01";
+	constant SAVE : std_logic_vector(1 downto 0) := "11";
+	constant HALT : std_logic_vector(1 downto 0) := "00";
+	
+	signal rst : std_logic;
+	signal ce : std_logic;
+	
+	signal pcnt : std_logic_vector(1 downto 0);
+	signal pclk : std_logic;
+	signal sx : std_logic;
+	signal sy : std_logic;
+	signal disp : std_logic;
+	signal x : std_logic_vector(9 downto 0);
+	signal y : std_logic_vector(9 downto 0);
+	signal vga_pix : std_logic;
+	signal vga_addr : std_logic_vector(7 downto 0);
+	signal vga_data : std_logic_vector(size-1 downto 0);
+	
+	signal pe_instr : std_logic_vector(21 downto 0);
+	signal north : std_logic_vector(size-1 downto 0);
+	signal south : std_logic_vector(size-1 downto 0);
+	signal east : std_logic_vector(size-1 downto 0);
+	signal west : std_logic_vector(size-1 downto 0);
+
+	signal flash_addr : std_logic_vector(25 downto 0);
+	signal flash_en : std_logic;
+	signal flash_data : std_logic_vector(15 downto 0);
+	signal flash_ready : std_logic;
+	
+	signal ld_data_we : std_logic;
+	signal ld_data_addr : std_logic_vector(7 downto 0);
+	signal ld_data_data : std_logic_vector(15 downto 0);
+	
+	signal ld_instr_we : std_logic;
+	signal ld_instr_addr : std_logic_vector(pclen downto 0);
+	signal ld_instr_data : std_logic_vector(31 downto 0);
+	signal ld_instr_loword : std_logic_vector(15 downto 0);
+	
+	signal data_we : std_logic;
+	signal data_addr : std_logic_vector(7 downto 0);
+	signal data_data : std_logic_vector(size-1 downto 0);
+	
+	signal data_loaded : std_logic;
+	signal instr_loaded : std_logic;
+	signal ready : std_logic;
+	signal halted : std_logic;
+	
+	signal img_we : std_logic;
+	signal img_addr : std_logic_vector(7 downto 0);
+	signal img_in : std_logic_vector(size-1 downto 0);
+	signal img_out : std_logic_vector(size-1 downto 0);
+
+	signal pc : std_logic_vector(pclen-1 downto 0);
+	signal instr : std_logic_vector(31 downto 0);
+	signal next_instr : std_logic_vector(31 downto 0);
+	signal ctrl : std_logic_vector(1 downto 0);
+	
+	signal next_pc : std_logic_vector(pclen-1 downto 0);
+	
+	signal start : std_logic;
+	
+begin
+	-- Instantiate the Unit Under Test (UUT)
+   pe_arr: entity work.pe_array generic map (size=>size)
+		port map (
+			clk => clk,
+			rst => rst,
+			ce => ce,
+			north => north,
+			east => east,
+			west => west,
+			south => south,
+			clrcar=>pe_instr(CLRCAR_OFF),
+			aluop=>pe_instr(ALU_OFF+2 downto ALU_OFF),
+			invacc=>pe_instr(INVACC_OFF),
+			invout=>pe_instr(INVOUT_OFF),
+			gpregsel=>pe_instr(GPREG_OFF+1 downto GPREG_OFF),
+			insel=>pe_instr(INSEL_OFF+2 downto INSEL_OFF),
+			ram_addr=>pe_instr(RAMADDR_OFF+7 downto RAMADDR_OFF),
+			set_ram=>pe_instr(SETRAM_OFF),
+			set_flag=>pe_instr(SETFLAG_OFF),
+			set_news=>pe_instr(SETNEWS_OFF),
+			outdata => img_out
+	  );
+	instr_cache : entity work.instr_ram 
+		port map (
+			clk => clk,
+			a => ld_instr_addr(pclen downto 1),
+			d => ld_instr_data,
+			we => ld_instr_we,
+			spo => open,
+			dpra => pc,
+			dpo => next_instr
+		);
+	data_cache : entity work.data_ram
+		port map (
+			clk => clk,
+			a => data_addr,
+			d => data_data,
+			we => data_we,
+			spo => img_in,
+			dpra => vga_addr,
+			dpo => vga_data
+		);
+	flash_mem : entity work.async_ram generic map (cycle => 12)
+		port map (
+			clk => clk,
+			rst => rst,
+			en => flash_en,
+			we => '0',
+			addr => flash_addr,
+			din => (others => '0'),
+			dout => flash_data,
+			ready=> flash_ready,
+			memadr => memadr,
+			memdb => memdb,
+			memoe => memoe,
+			memwr => memwr,
+			memcs => flashcs
+		);
+	vga1 : entity work.vga
+		port map (
+			clk => clk,
+			rst => rst,
+			ce => pclk,
+			hs => Hsync,
+			vs => Vsync,
+			sx => sx,
+			sy => sy,
+			disp => disp
+		);
+	next_pc <= pc + '1';
+	led <= (
+		0 => instr_loaded,
+		1 => data_loaded,
+		2 => ce,
+		3 => halted,
+		others => '0');
+	rst <= not btn(0);
+	
+	pclk <= '1' when pcnt = "00" else '0';
+	vga_addr(7 downto lsize) <= (others=>'0');
+	vga_addr(lsize-1 downto 0) <= x(7 downto 8-lsize) when x(9 downto 8) = "00" else (others=>'0');
+	vga_pix <= vga_data(conv_integer(unsigned(y(7 downto 8-lsize)))) when y(9 downto 8) = "00" and x(9 downto 8) = "00" else '0';
+	vgaRed <= (others=>vga_pix);
+	vgaGreen <= (others=>vga_pix);
+	vgaBlue <= (others=>vga_pix);
+	
+	vgaDriver : process(rst,clk)
+	begin
+		if (rst = '0') then
+			pcnt <= "00";
+			x <= (others=>'0');
+			y <= (others=>'0');
+		elsif (rising_edge(clk)) then
+			if (pclk = '1') then
+				if (sx = '1') then
+					x <= (others=>'0');
+					if (sy = '1') then
+						y <= (others => '0');
+					else
+						y <= y + '1';
+					end if;
+				elsif (disp = '1') then
+					x <= x + '1';
+				end if;
+			end if;
+			pcnt <= pcnt + 1;
+		end if;
+	end process;
+	
+	-- Loader
+	ld_data_we <= '1' when instr_loaded = '1' and data_loaded = '0' and flash_ready = '1' else '0';
+	ld_instr_we <= '1' when instr_loaded = '0' and flash_ready = '1' and ld_instr_addr(0) = '1' else '0';
+	flash_addr <= "0000001000000000" & ld_instr_addr when instr_loaded = '0' else -- Base address 0x100000
+					  "000001000000000000" & ld_data_addr; -- Base address 0x200000
+	flashrp <= rst;
+	ld_instr_data <= flash_data & ld_instr_loword;
+	ld_data_data <= flash_data;
+	
+	data_data <= img_out when data_loaded = '1' else ld_data_data;
+	data_addr <= img_addr when data_loaded = '1' else ld_data_addr;
+	data_we <= img_we when data_loaded = '1' else ld_data_we;
+	
+	loader : process(rst,clk)
+	begin
+		if (rst = '0') then
+			data_loaded <= '0';
+			instr_loaded <= '0';
+			ld_data_addr <= (others=>'0');
+			ld_instr_addr <= (others=>'0');
+			ld_instr_loword <= (others=>'0');
+			flash_en <= '0';
+		elsif (clk'event and clk = '1') then
+			if (btn(2) = '1') then
+				instr_loaded <= '0';
+			elsif (btn(4) = '1') then
+				data_loaded <= '0';
+			end if;
+			if (flash_ready = '1') then
+				if (instr_loaded = '0') then
+					if (ld_instr_addr(0) = '0') then
+						ld_instr_loword <= flash_data;
+					elsif (ld_instr_addr = "1111111111" or ld_instr_data(31 downto 30) = HALT) then
+						instr_loaded <= '1';
+					end if;
+					ld_instr_addr <= ld_instr_addr + '1';
+				elsif (data_loaded = '0') then
+					if (ld_data_addr = "11111111") then
+						data_loaded <= '1';
+					end if;
+					ld_data_addr <= ld_data_addr + '1';
+				end if;
+			elsif (instr_loaded = '0' or data_loaded = '0') then
+				flash_en <= '1';
+			else
+				flash_en <= '0';
+			end if;
+		end if;
+	end process;
+	
+	-- Control unit
+	north <= (others => '1');
+	south <= (others => '1');
+	east <= (others => '1');
+	west <= img_in when ctrl = LOAD else (others=>'1');
+	
+	ready <= data_loaded and instr_loaded and start;
+	
+	pe_instr <= instr(21 downto 0);
+	ctrl <= instr(31 downto 30);
+	halted <= '1' when (ready = '1' and ctrl = HALT) else '0';
+	ce <= '1' when ready = '1' and halted = '0' else '0';
+	
+	img_addr <= instr(29 downto 22);
+	img_we <= '1' when ce = '1' and ctrl = SAVE else '0';
+	process(rst,clk)
+	begin
+		if (rst = '0') then
+			pc <= (others=>'0');
+			instr <= (others=>'0');
+			start <= '0';
+			img_we_reg <= '0';
+		elsif (clk'event and clk = '1') then
+			img_we_reg <= img_we;
+			instr <= next_instr;
+			if (btn(3) = '1') then
+				start <= '1';
+			end if;
+			if (ce = '1') then
+				pc <= next_pc;
+			end if;
+		end if;
+	end process;
+end Behavioral;
+
