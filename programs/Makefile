@@ -1,6 +1,7 @@
 all: edge.bin sobel.bin erosion.bin
-%.bin: %.n8
+%.bin: %.n8 n8c
 	../compiler/n8c -o $@ $<
-
+n8c:
+	cd ../compiler && make
 clean:
 	rm -f *.bin
