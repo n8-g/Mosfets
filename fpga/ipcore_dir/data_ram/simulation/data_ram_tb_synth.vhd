@@ -99,12 +99,12 @@ ARCHITECTURE data_ram_synth_ARCH OF data_ram_tb_synth IS
 
 COMPONENT data_ram_exdes
   PORT (
-    DPRA       : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
+    DPRA       : IN  STD_LOGIC_VECTOR(8-1 downto 0)           := (OTHERS => '0');
     CLK        : IN  STD_LOGIC                                                := '0';
     WE         : IN  STD_LOGIC                                                := '0';
     SPO        : OUT STD_LOGIC_VECTOR(16-1 downto 0);
     DPO        : OUT STD_LOGIC_VECTOR(16-1 downto 0);
-    A          : IN  STD_LOGIC_VECTOR(9-1-(4*0*boolean'pos(9>4)) downto 0)
+    A          : IN  STD_LOGIC_VECTOR(8-1-(4*0*boolean'pos(8>4)) downto 0)
                  := (OTHERS => '0');
     D          : IN  STD_LOGIC_VECTOR(16-1 downto 0)                := (OTHERS => '0')
       );
@@ -122,10 +122,10 @@ END COMPONENT;
   SIGNAL RESET_SYNC_R2 : STD_LOGIC:='1';
   SIGNAL RESET_SYNC_R3 : STD_LOGIC:='1';
 
-  SIGNAL ADDR: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL ADDR_R: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL DPRA: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL DPRA_R: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL ADDR: STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL ADDR_R: STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL DPRA: STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL DPRA_R: STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
   SIGNAL WE : STD_LOGIC:='0';
   SIGNAL WE_R : STD_LOGIC:='0';
   SIGNAL SPO: STD_LOGIC_VECTOR(15 DOWNTO 0) := (OTHERS => '0');

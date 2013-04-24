@@ -60,16 +60,16 @@ architecture Behavioral of pe_array is
 	type news_t is array(size+1 downto 0) of std_logic_vector(size+1 downto 0);
 	signal news : news_t;
 begin
-	col: for i in 1 to size generate -- Column
-		row: for j in 1 to size generate -- Row
+	row: for i in 1 to size generate -- Row
+		col: for j in 1 to size generate -- Column
 			el : entity work.pe port map (
 				clk=>clk, 
 				rst=>rst, 
 				ce=>ce,
-				north=>news(i)(j-1),
-				east=>news(i+1)(j),
-				west=>news(i-1)(j),
-				south=>news(i)(j+1),
+				north=>news(i-1)(j),
+				east=>news(i)(j+1),
+				west=>news(i)(j-1),
+				south=>news(i+1)(j),
 				clrcar=>clrcar,
 				aluop=>aluop,
 				invacc=>invacc,
@@ -82,16 +82,17 @@ begin
 				set_news=>set_news,
 				output=>news(i)(j));
 		end generate;
-		news(i)(0) <= north(i-1);
-		news(i)(size+1) <= south(i-1);
-		news(0)(i) <= west(i-1);
-		news(size+1)(i) <= east(i-1);
+		news(i)(0) <= west(i-1);
+		news(i)(size+1) <= east(i-1);
+		news(0)(i) <= north(i-1);
+		news(size+1)(i) <= south(i-1);
 	end generate;
+	-- Corners
 	news(0)(0) <= '0';
 	news(0)(size+1) <= '0';
 	news(size+1)(0) <= '0';
 	news(size+1)(size+1) <= '0';
-	outdata <= news(size)(size downto 1);
+	outdata <= news(0)(size downto 1); -- Output top row
 			
 end Behavioral;
 

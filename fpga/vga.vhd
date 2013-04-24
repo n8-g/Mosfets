@@ -37,8 +37,8 @@ entity vga is
 		ce : in std_logic;
 		hs : out std_logic;
 		vs : out std_logic;
-		sx : out std_logic;
-		sy : out std_logic;
+		x : out std_logic_vector(9 downto 0);
+		y : out std_logic_vector(9 downto 0);
 		disp : out std_logic
 	);
 end vga;
@@ -48,10 +48,12 @@ architecture Behavioral of vga is
 	signal vcount : std_logic_vector(9 downto 0);
 	signal hdisp : std_logic;
 	signal vdisp : std_logic;
+	signal xcnt : std_logic_vector(9 downto 0);
+	signal ycnt : std_logic_vector(9 downto 0);
 begin
 	disp <= hdisp and vdisp;
-	sx <= '1' when hcount = 144 and ce = '1' else '0';
-	sy <= '1' when vcount = 31 and hcount = 144 and ce = '1' else '0';
+	x <= xcnt;
+	y <= ycnt;
 	process (clk,rst)
 	begin
 		if (rst = '0') then
@@ -61,8 +63,15 @@ begin
 			vcount <= (others => '0');
 			hdisp <= '0';
 			vdisp <= '0';
+			xcnt <= (others=>'0');
+			ycnt <= (others=>'0');
 		elsif (clk'event and clk = '1') then
 			if (ce = '1') then
+				if (hdisp = '1') then
+					xcnt <= xcnt + '1';
+				else
+					xcnt <= (others=>'0');
+				end if;
 				hcount <= hcount + 1;
 				if (hcount = 96) then
 					hs <= '1'; -- Clear horizontal sync, begin back porch
@@ -70,7 +79,12 @@ begin
 					hdisp <= '1';
 				elsif (hcount = 784) then
 					hdisp <= '0';
-				elsif (hcount = 800) then
+				elsif (hcount = 800) then -- End of row
+					if (vdisp = '1') then
+						ycnt <= ycnt + '1';
+					else
+						ycnt <= (others=>'0');
+					end if;
 					hcount <= (others => '0');
 					hs <= '0';
 					vcount <= vcount + 1;

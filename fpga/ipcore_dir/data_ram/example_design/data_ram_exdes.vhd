@@ -75,12 +75,12 @@ use unisim.vcomponents.all;
 --------------------------------------------------------------------------------
 entity data_ram_exdes is
   PORT (
-    DPRA       : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
+    DPRA       : IN  STD_LOGIC_VECTOR(8-1 downto 0)           := (OTHERS => '0');
     CLK        : IN  STD_LOGIC                                                := '0';
     WE         : IN  STD_LOGIC                                                := '0';
     SPO        : OUT STD_LOGIC_VECTOR(16-1 downto 0);
     DPO        : OUT STD_LOGIC_VECTOR(16-1 downto 0);
-    A          : IN  STD_LOGIC_VECTOR(9-1-(4*0*boolean'pos(9>4)) downto 0)
+    A          : IN  STD_LOGIC_VECTOR(8-1-(4*0*boolean'pos(8>4)) downto 0)
                  := (OTHERS => '0');
     D          : IN  STD_LOGIC_VECTOR(16-1 downto 0)                := (OTHERS => '0')
       );
@@ -96,12 +96,12 @@ architecture xilinx of data_ram_exdes is
   component data_ram is
   PORT (
 
-    DPRA                    : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
+    DPRA                    : IN  STD_LOGIC_VECTOR(8-1 downto 0)           := (OTHERS => '0');
     CLK                     : IN STD_LOGIC;
     WE                      : IN  STD_LOGIC;
     SPO                     : OUT STD_LOGIC_VECTOR(16-1 downto 0);
     DPO                     : OUT STD_LOGIC_VECTOR(16-1 downto 0);
-    A                       : IN  STD_LOGIC_VECTOR(9-1-(4*0*boolean'pos(9>4)) downto 0)
+    A                       : IN  STD_LOGIC_VECTOR(8-1-(4*0*boolean'pos(8>4)) downto 0)
                               := (OTHERS => '0');
     D                       : IN  STD_LOGIC_VECTOR(16-1 downto 0)                := (OTHERS => '0')
 

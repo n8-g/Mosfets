@@ -42,9 +42,9 @@ LIBRARY XilinxCoreLib;
 -- synthesis translate_on
 ENTITY data_ram IS
   PORT (
-    a : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     d : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-    dpra : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    dpra : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     clk : IN STD_LOGIC;
     we : IN STD_LOGIC;
     spo : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
@@ -56,9 +56,9 @@ ARCHITECTURE data_ram_a OF data_ram IS
 -- synthesis translate_off
 COMPONENT wrapped_data_ram
   PORT (
-    a : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     d : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-    dpra : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    dpra : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     clk : IN STD_LOGIC;
     we : IN STD_LOGIC;
     spo : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
@@ -69,9 +69,9 @@ END COMPONENT;
 -- Configuration specification
   FOR ALL : wrapped_data_ram USE ENTITY XilinxCoreLib.dist_mem_gen_v7_2(behavioral)
     GENERIC MAP (
-      c_addr_width => 9,
+      c_addr_width => 8,
       c_default_data => "0",
-      c_depth => 512,
+      c_depth => 256,
       c_family => "spartan6",
       c_has_clk => 1,
       c_has_d => 1,

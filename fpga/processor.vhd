@@ -60,25 +60,31 @@ architecture Behavioral of processor is
 	constant lsize : integer := 4;
 	constant size : integer := 2**lsize;
 	constant pclen : integer := 9;
+	constant ldepth : integer := 2;
+	constant depth : integer := 4;
 	
 	constant LOAD : std_logic_vector(1 downto 0) := "10";
 	constant RUN : std_logic_vector(1 downto 0) := "01";
 	constant SAVE : std_logic_vector(1 downto 0) := "11";
 	constant HALT : std_logic_vector(1 downto 0) := "00";
 	
+	type image_row is array(size-1 downto 0) of std_logic_vector(depth-1 downto 0);
+	
 	signal rst : std_logic;
 	signal ce : std_logic;
 	
 	signal pcnt : std_logic_vector(1 downto 0);
 	signal pclk : std_logic;
-	signal sx : std_logic;
-	signal sy : std_logic;
 	signal disp : std_logic;
-	signal x : std_logic_vector(9 downto 0);
-	signal y : std_logic_vector(9 downto 0);
-	signal vga_pix : std_logic;
+	signal vga_x : std_logic_vector(9 downto 0);
+	signal vga_y : std_logic_vector(9 downto 0);
+	signal img_x : std_logic_vector(lsize-1 downto 0);
+	signal img_y : std_logic_vector(lsize-1 downto 0);
+	signal vga_bit : std_logic_vector(ldepth-1 downto 0);
+	signal vga_pix : std_logic_vector(3 downto 0);
 	signal vga_addr : std_logic_vector(7 downto 0);
 	signal vga_data : std_logic_vector(size-1 downto 0);
+	signal vga_row : image_row;
 	
 	signal pe_instr : std_logic_vector(21 downto 0);
 	signal north : std_logic_vector(size-1 downto 0);
@@ -189,8 +195,8 @@ begin
 			ce => pclk,
 			hs => Hsync,
 			vs => Vsync,
-			sx => sx,
-			sy => sy,
+			x => vga_x,
+			y => vga_y,
 			disp => disp
 		);
 	next_pc <= pc + '1';
@@ -202,34 +208,43 @@ begin
 		others => '0');
 	rst <= not btn(0);
 	
+	img_x <= vga_x(7 downto 8-lsize);
+	img_y <= vga_y(7 downto 8-lsize);
 	pclk <= '1' when pcnt = "00" else '0';
-	vga_addr(7 downto lsize) <= (others=>'0');
-	vga_addr(lsize-1 downto 0) <= x(7 downto 8-lsize) when x(9 downto 8) = "00" else (others=>'0');
-	vga_pix <= vga_data(conv_integer(unsigned(y(7 downto 8-lsize)))) when y(9 downto 8) = "00" and x(9 downto 8) = "00" else '0';
-	vgaRed <= (others=>vga_pix);
-	vgaGreen <= (others=>vga_pix);
-	vgaBlue <= (others=>vga_pix);
+	vga_addr(7 downto lsize+ldepth) <= (others=>'0'); -- 0
+	vga_addr(lsize+ldepth-1 downto lsize) <= vga_bit; -- Depth
+	vga_addr(lsize-1 downto 0) <= img_x when vga_x(9 downto 8) = "00" else (others=>'0'); -- Row
+	vga_pix(3 downto 4-depth) <= vga_row(conv_integer(unsigned(img_y))) when vga_y(9 downto 8) = "00" and vga_x(9 downto 8) = "00" else (others=>'0');
+	vga_pix(3-depth downto 0) <= (others=>vga_pix(4-depth));
 	
+	vgaRed <= vga_pix(3 downto 1);
+	vgaGreen <= vga_pix(3 downto 1);
+	vgaBlue <= vga_pix(3 downto 2);
+	
+	-- Fills in the bits for vga_row based on the current row
 	vgaDriver : process(rst,clk)
 	begin
 		if (rst = '0') then
-			pcnt <= "00";
-			x <= (others=>'0');
-			y <= (others=>'0');
+			vga_row <= (others =>(others=>'0'));
+			vga_bit <= (others=>'0');
 		elsif (rising_edge(clk)) then
-			if (pclk = '1') then
-				if (sx = '1') then
-					x <= (others=>'0');
-					if (sy = '1') then
-						y <= (others => '0');
-					else
-						y <= y + '1';
-					end if;
-				elsif (disp = '1') then
-					x <= x + '1';
-				end if;
+			for i in 0 to size-1 loop
+				vga_row(i)(conv_integer(unsigned(vga_bit))) <= vga_data(i);
+			end loop;
+			if (vga_bit = depth-1) then
+				vga_bit <= (others=>'0');
+			else
+				vga_bit <= vga_bit + '1';
 			end if;
-			pcnt <= pcnt + 1;
+		end if;
+	end process;
+	
+	pixelClock : process(rst,clk)
+	begin
+		if (rst = '0') then
+			pcnt <= "00";
+		elsif (rising_edge(clk)) then
+			pcnt <= pcnt + '1';
 		end if;
 	end process;
 	
@@ -285,9 +300,9 @@ begin
 	
 	-- Control unit
 	north <= (others => '1');
-	south <= (others => '1');
+	south <= img_in when ctrl = LOAD else (others => '1');
 	east <= (others => '1');
-	west <= img_in when ctrl = LOAD else (others=>'1');
+	west <= (others=>'1');
 	
 	ready <= data_loaded and instr_loaded and start;
 	
@@ -304,9 +319,7 @@ begin
 			pc <= (others=>'0');
 			instr <= (others=>'0');
 			start <= '0';
-			img_we_reg <= '0';
 		elsif (clk'event and clk = '1') then
-			img_we_reg <= img_we;
 			instr <= next_instr;
 			if (btn(3) = '1') then
 				start <= '1';

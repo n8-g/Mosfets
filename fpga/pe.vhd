@@ -57,7 +57,7 @@ end pe;
 architecture Behavioral of pe is
 
 begin
-
+	output <= '1';
 
 end Behavioral;
 

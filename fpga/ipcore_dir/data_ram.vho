@@ -42,9 +42,9 @@
 ------------- Begin Cut here for COMPONENT Declaration ------ COMP_TAG
 COMPONENT data_ram
   PORT (
-    a : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     d : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-    dpra : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    dpra : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     clk : IN STD_LOGIC;
     we : IN STD_LOGIC;
     spo : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
