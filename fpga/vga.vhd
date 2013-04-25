@@ -72,7 +72,7 @@ begin
 				else
 					xcnt <= (others=>'0');
 				end if;
-				hcount <= hcount + 1;
+				hcount <= hcount + '1';
 				if (hcount = 96) then
 					hs <= '1'; -- Clear horizontal sync, begin back porch
 				elsif (hcount = 144) then
@@ -87,7 +87,7 @@ begin
 					end if;
 					hcount <= (others => '0');
 					hs <= '0';
-					vcount <= vcount + 1;
+					vcount <= vcount + '1';
 					if (vcount = 2) then
 						vs <= '1'; -- Clear vertical sync
 					elsif (vcount = 31) then

@@ -50,9 +50,9 @@ entity processor is
 		vgaGreen : out std_logic_vector(2 downto 0);
 		vgaBlue : out std_logic_vector(2 downto 1);
 		Hsync : out std_logic;
-		Vsync : out std_logic
-		--seg : out std_logic_vector(7 downto 0);
-		--an : out std_logic_vector(3 downto 0)
+		Vsync : out std_logic;
+		seg : out std_logic_vector(7 downto 0);
+		an : out std_logic_vector(3 downto 0)
 	);
 end processor;
 
@@ -63,14 +63,11 @@ architecture Behavioral of processor is
 	constant ldepth : integer := 2;
 	constant depth : integer := 4;
 	
-	constant LOAD : std_logic_vector(1 downto 0) := "10";
-	constant RUN : std_logic_vector(1 downto 0) := "01";
-	constant SAVE : std_logic_vector(1 downto 0) := "11";
-	constant HALT : std_logic_vector(1 downto 0) := "00";
-	
 	type image_row is array(size-1 downto 0) of std_logic_vector(depth-1 downto 0);
 	
 	signal rst : std_logic;
+	signal data_rst : std_logic;
+	signal instr_rst : std_logic;
 	signal ce : std_logic;
 	
 	signal pcnt : std_logic_vector(1 downto 0);
@@ -97,9 +94,7 @@ architecture Behavioral of processor is
 	signal flash_data : std_logic_vector(15 downto 0);
 	signal flash_ready : std_logic;
 	
-	signal ld_data_we : std_logic;
 	signal ld_data_addr : std_logic_vector(7 downto 0);
-	signal ld_data_data : std_logic_vector(15 downto 0);
 	
 	signal ld_instr_we : std_logic;
 	signal ld_instr_addr : std_logic_vector(pclen downto 0);
@@ -110,10 +105,13 @@ architecture Behavioral of processor is
 	signal data_addr : std_logic_vector(7 downto 0);
 	signal data_data : std_logic_vector(size-1 downto 0);
 	
-	signal data_loaded : std_logic;
-	signal instr_loaded : std_logic;
+	signal load_data : std_logic;
+	signal load_instr : std_logic;
 	signal ready : std_logic;
 	signal halted : std_logic;
+	
+	signal data_loaded : std_logic;
+	signal instr_loaded : std_logic;
 	
 	signal img_we : std_logic;
 	signal img_addr : std_logic_vector(7 downto 0);
@@ -199,14 +197,27 @@ begin
 			y => vga_y,
 			disp => disp
 		);
-	next_pc <= pc + '1';
 	led <= (
 		0 => instr_loaded,
 		1 => data_loaded,
 		2 => ce,
 		3 => halted,
 		others => '0');
+	seg <= (others=>'1');
+	an <= (others=>'1');
 	rst <= not btn(0);
+	data_rst <= rst and not btn(4);
+	instr_rst <= rst and not btn(2);
+	flashrp <= rst;
+	
+	pixelClock : process(rst,clk)
+	begin
+		if (rst = '0') then
+			pcnt <= "00";
+		elsif (rising_edge(clk)) then
+			pcnt <= pcnt + '1';
+		end if;
+	end process;
 	
 	img_x <= vga_x(7 downto 8-lsize);
 	img_y <= vga_y(7 downto 8-lsize);
@@ -216,7 +227,7 @@ begin
 	vga_addr(lsize-1 downto 0) <= img_x when vga_x(9 downto 8) = "00" else (others=>'0'); -- Row
 	vga_pix(3 downto 4-depth) <= vga_row(conv_integer(unsigned(img_y))) when vga_y(9 downto 8) = "00" and vga_x(9 downto 8) = "00" else (others=>'0');
 	vga_pix(3-depth downto 0) <= (others=>vga_pix(4-depth));
-	
+	--vga_pix <= (others=>img_x(0) xor img_y(0));
 	vgaRed <= vga_pix(3 downto 1);
 	vgaGreen <= vga_pix(3 downto 1);
 	vgaBlue <= vga_pix(3 downto 2);
@@ -228,8 +239,9 @@ begin
 			vga_row <= (others =>(others=>'0'));
 			vga_bit <= (others=>'0');
 		elsif (rising_edge(clk)) then
-			for i in 0 to size-1 loop
-				vga_row(i)(conv_integer(unsigned(vga_bit))) <= vga_data(i);
+			-- Fill the proper bit for each pixel in our row with the data from the image RAM
+			for i in 0 to size-1 loop -- Iterate over each pixel
+				vga_row(i)(depth-1-conv_integer(unsigned(vga_bit))) <= vga_data(i);
 			end loop;
 			if (vga_bit = depth-1) then
 				vga_bit <= (others=>'0');
@@ -239,61 +251,67 @@ begin
 		end if;
 	end process;
 	
-	pixelClock : process(rst,clk)
+	-- Priority encoder
+	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,start,img_out,img_addr,img_we)
 	begin
-		if (rst = '0') then
-			pcnt <= "00";
-		elsif (rising_edge(clk)) then
-			pcnt <= pcnt + '1';
+		load_instr <= '0';
+		load_data <= '0';
+		ready <= '0';
+		flash_addr <= (others=>'0');
+		flash_en <= '0';
+		ld_instr_we <= '0';
+		data_data <= (others=>'0');
+		data_addr <= (others=>'0');
+		data_we <= '0';
+		if (instr_loaded = '0') then
+			load_instr <= '1';
+			flash_addr <= "0000001000000000" & ld_instr_addr;
+			flash_en <= '1';
+			ld_instr_we <= flash_ready and ld_instr_addr(0);
+		elsif (data_loaded = '0') then
+			load_data <= '1';
+			flash_en <= '1';
+			data_data <= flash_data;
+			data_addr <= ld_data_addr;
+			data_we <= flash_ready;
+			flash_addr <= "000001000000000000" & ld_data_addr;
+		elsif (start = '1') then
+			ready <= '1';
+			data_data <= img_out;
+			data_addr <= img_addr;
+			data_we <= img_we;
 		end if;
 	end process;
 	
-	-- Loader
-	ld_data_we <= '1' when instr_loaded = '1' and data_loaded = '0' and flash_ready = '1' else '0';
-	ld_instr_we <= '1' when instr_loaded = '0' and flash_ready = '1' and ld_instr_addr(0) = '1' else '0';
-	flash_addr <= "0000001000000000" & ld_instr_addr when instr_loaded = '0' else -- Base address 0x100000
-					  "000001000000000000" & ld_data_addr; -- Base address 0x200000
-	flashrp <= rst;
+	-- Loaders
 	ld_instr_data <= flash_data & ld_instr_loword;
-	ld_data_data <= flash_data;
-	
-	data_data <= img_out when data_loaded = '1' else ld_data_data;
-	data_addr <= img_addr when data_loaded = '1' else ld_data_addr;
-	data_we <= img_we when data_loaded = '1' else ld_data_we;
-	
-	loader : process(rst,clk)
+	instrLoader : process(instr_rst,clk)
 	begin
-		if (rst = '0') then
-			data_loaded <= '0';
+		if (instr_rst = '0') then
 			instr_loaded <= '0';
-			ld_data_addr <= (others=>'0');
 			ld_instr_addr <= (others=>'0');
-			ld_instr_loword <= (others=>'0');
-			flash_en <= '0';
-		elsif (clk'event and clk = '1') then
-			if (btn(2) = '1') then
-				instr_loaded <= '0';
-			elsif (btn(4) = '1') then
-				data_loaded <= '0';
-			end if;
-			if (flash_ready = '1') then
-				if (instr_loaded = '0') then
-					if (ld_instr_addr(0) = '0') then
-						ld_instr_loword <= flash_data;
-					elsif (ld_instr_addr = "1111111111" or ld_instr_data(31 downto 30) = HALT) then
-						instr_loaded <= '1';
-					end if;
-					ld_instr_addr <= ld_instr_addr + '1';
-				elsif (data_loaded = '0') then
-					if (ld_data_addr = "11111111") then
-						data_loaded <= '1';
-					end if;
-					ld_data_addr <= ld_data_addr + '1';
+		elsif(rising_edge(clk)) then
+			if (load_instr = '1' and flash_ready = '1') then
+				if (ld_instr_addr(0) = '0') then
+					ld_instr_loword <= flash_data;
+				elsif (ld_instr_addr = "111111111" or ld_instr_data(31 downto 30) = HALT) then
+					instr_loaded <= '1';
 				end if;
-			elsif (instr_loaded = '0' or data_loaded = '0') then
-				flash_en <= '1';
-			else
-				flash_en <= '0';
+				ld_instr_addr <= ld_instr_addr + '1';
+			end if;
+		end if;
+	end process;
+	dataLoader : process(data_rst,clk)
+	begin
+		if (data_rst = '0') then
+			data_loaded <= '0';
+			ld_data_addr <= (others=>'0');
+		elsif(rising_edge(clk)) then
+			if (load_data = '1' and flash_ready = '1') then
+				if (ld_data_addr = "11111111") then
+					data_loaded <= '1';
+				end if;
+				ld_data_addr <= ld_data_addr + '1';
 			end if;
 		end if;
 	end process;
@@ -304,8 +322,7 @@ begin
 	east <= (others => '1');
 	west <= (others=>'1');
 	
-	ready <= data_loaded and instr_loaded and start;
-	
+	next_pc <= pc + '1';
 	pe_instr <= instr(21 downto 0);
 	ctrl <= instr(31 downto 30);
 	halted <= '1' when (ready = '1' and ctrl = HALT) else '0';

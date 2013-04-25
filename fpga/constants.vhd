@@ -37,7 +37,11 @@ package pe_const is
 	constant GP_X : std_logic_vector(1 downto 0) := "01";
 	constant GP_Y : std_logic_vector(1 downto 0) := "10";
 	constant GP_Z : std_logic_vector(1 downto 0) := "11";
+	
 end pe_const;
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.all;
 
 package instr_word is
 	constant CLRCAR_OFF : integer := 0;
@@ -52,4 +56,9 @@ package instr_word is
 	constant SETNEWS_OFF : integer := 21;
 	constant IMGADDR_OFF : integer := 22;
 	constant CTRL_OFF : integer := 30;
+	
+	constant LOAD : std_logic_vector(1 downto 0) := "10";
+	constant RUN : std_logic_vector(1 downto 0) := "01";
+	constant SAVE : std_logic_vector(1 downto 0) := "11";
+	constant HALT : std_logic_vector(1 downto 0) := "00";
 end instr_word;

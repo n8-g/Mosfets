@@ -1,5 +1,3 @@
-all:
-	cd compiler && make
-	cd makehex && make
-	cd images && make
-	cd programs && make clean && make
+prog: processor.bit
+	djtgcfg prog -d Nexys3 -i 0 -f processor.bit
+

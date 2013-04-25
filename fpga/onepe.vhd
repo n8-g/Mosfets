@@ -48,7 +48,9 @@ entity onepe is
 		vgaGreen : out std_logic_vector(2 downto 0);
 		vgaBlue : out std_logic_vector(2 downto 1);
 		Hsync : out std_logic;
-		Vsync : out std_logic
+		Vsync : out std_logic;
+		seg : out std_logic_vector(7 downto 0);
+		an : out std_logic_vector(3 downto 0)
 	);
 end onepe;
 
@@ -103,6 +105,8 @@ begin
 		1 => sw(1),
 		0 => sw(0)
 	);
+	seg <= (others=>'1');
+	an <= (others=>'1');
 	ce <= start and (not halt);
 	rst <= not btn(1);
 	clrcar <= '0';
