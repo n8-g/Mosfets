@@ -252,7 +252,7 @@ begin
 	end process;
 	
 	-- Priority encoder
-	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,start,img_out,img_addr,img_we)
+	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,start,img_out,img_addr,img_we,sw)
 	begin
 		load_instr <= '0';
 		load_data <= '0';
@@ -265,16 +265,16 @@ begin
 		data_we <= '0';
 		if (instr_loaded = '0') then
 			load_instr <= '1';
-			flash_addr <= "0000001000000000" & ld_instr_addr;
 			flash_en <= '1';
 			ld_instr_we <= flash_ready and ld_instr_addr(0);
+			flash_addr <= "0000001"&sw(3 downto 0)&"00000" & ld_instr_addr;
 		elsif (data_loaded = '0') then
 			load_data <= '1';
 			flash_en <= '1';
 			data_data <= flash_data;
 			data_addr <= ld_data_addr;
 			data_we <= flash_ready;
-			flash_addr <= "000001000000000000" & ld_data_addr;
+			flash_addr <= "0000010"&sw(7 downto 4)&"0000000" & ld_data_addr;
 		elsif (start = '1') then
 			ready <= '1';
 			data_data <= img_out;
