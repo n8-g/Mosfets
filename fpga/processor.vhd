@@ -89,6 +89,8 @@ architecture Behavioral of processor is
 	signal east : std_logic_vector(size-1 downto 0);
 	signal west : std_logic_vector(size-1 downto 0);
 
+	signal flash_page : std_logic_vector(7 downto 0);
+	signal flash_offset : std_logic_vector(14 downto 0);
 	signal flash_addr : std_logic_vector(25 downto 0);
 	signal flash_en : std_logic;
 	signal flash_data : std_logic_vector(15 downto 0);
@@ -209,6 +211,7 @@ begin
 	data_rst <= rst and not btn(4);
 	instr_rst <= rst and not btn(2);
 	flashrp <= rst;
+	flash_addr <= "000"&flash_page&flash_offset;
 	
 	pixelClock : process(rst,clk)
 	begin
@@ -257,7 +260,8 @@ begin
 		load_instr <= '0';
 		load_data <= '0';
 		ready <= '0';
-		flash_addr <= (others=>'0');
+		flash_page <= (others=>'0');
+		flash_offset <= (others=>'0');
 		flash_en <= '0';
 		ld_instr_we <= '0';
 		data_data <= (others=>'0');
@@ -267,14 +271,16 @@ begin
 			load_instr <= '1';
 			flash_en <= '1';
 			ld_instr_we <= flash_ready and ld_instr_addr(0);
-			flash_addr <= "0000001"&sw(3 downto 0)&"00000" & ld_instr_addr;
+			flash_page <= x"1"&sw(3 downto 0);
+			flash_offset(ld_instr_addr'RANGE) <= ld_instr_addr;
 		elsif (data_loaded = '0') then
 			load_data <= '1';
 			flash_en <= '1';
 			data_data <= flash_data;
 			data_addr <= ld_data_addr;
 			data_we <= flash_ready;
-			flash_addr <= "0000010"&sw(7 downto 4)&"0000000" & ld_data_addr;
+			flash_page <= x"2"&sw(7 downto 4);
+			flash_offset(ld_data_addr'RANGE) <= ld_data_addr;
 		elsif (start = '1') then
 			ready <= '1';
 			data_data <= img_out;
