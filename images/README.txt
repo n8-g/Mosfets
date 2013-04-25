@@ -1,1 +1,1 @@
-Download image (*.bin) files into SPI flash address 0x2n0000 where n is the image index (from 0 to F).
+Download image (*.bin) files into BPI flash address 0x2n0000 where n is the program index (from 0 to F). Since Adept seems to erase blocks of size 0x20000, images must be downloaded as pairs (0 and 1, 2 and 3, 4 and 5, etc). For the time being, its easier to download images only at even image indices and leave the odd ones blank.
