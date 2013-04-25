@@ -1,0 +1,1 @@
+Download image (*.bin) files into SPI flash address 0x1n0000 where n is the program index (from 0 to F).
