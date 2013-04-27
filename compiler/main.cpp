@@ -35,7 +35,7 @@ enum insel_t
 
 enum aluop_t
 {
-	OP_LD = 0,
+	OP_CPY = 0,
 	OP_AND = 1,
 	OP_XOR = 2,
 	OP_OR = 3,
@@ -136,11 +136,11 @@ int parse_instr(FILE* out)
 	if (next_token(NULL,lex) == NONE)
 		return 0;
 	if (!strcmp(lex,"LOAD"))
-		ctrl = LOAD, instr |= (OP_LD << ALU_OFF) | (1 << NEWS_OFF) | (IN_WEST << INSEL_OFF);
+		ctrl = LOAD, instr |= (OP_CPY << ALU_OFF) | (1 << NEWS_OFF) | (IN_WEST << INSEL_OFF);
 	else if (!strcmp(lex,"SAVE"))
-		ctrl = SAVE, instr |= (OP_LD << ALU_OFF) | (1 << NEWS_OFF) | (IN_WEST << INSEL_OFF);
+		ctrl = SAVE, instr |= (OP_CPY << ALU_OFF) | (1 << NEWS_OFF) | (IN_WEST << INSEL_OFF);
 	else if (!strcmp(lex,"CPY"))
-		instr |= OP_LD << ALU_OFF; // No change really, but for consistency sake
+		instr |= OP_CPY << ALU_OFF; // No change really, but for consistency sake
 	else if (!strcmp(lex,"AND"))
 		instr |= (OP_AND << ALU_OFF);
 	else if (!strcmp(lex,"IAND"))
