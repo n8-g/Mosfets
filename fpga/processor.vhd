@@ -60,10 +60,10 @@ architecture Behavioral of processor is
 	constant lsize : integer := 4;
 	constant size : integer := 2**lsize;
 	constant pclen : integer := 9;
-	constant ldepth : integer := 2;
-	constant depth : integer := 4;
 	
-	type image_row is array(size-1 downto 0) of std_logic_vector(depth-1 downto 0);
+	constant pixel_scale : integer := 480 / size;
+	
+	type image_row is array(size-1 downto 0) of std_logic_vector(2 downto 0);
 	
 	signal rst : std_logic;
 	signal data_rst : std_logic;
@@ -72,13 +72,14 @@ architecture Behavioral of processor is
 	
 	signal pcnt : std_logic_vector(1 downto 0);
 	signal pclk : std_logic;
-	signal disp : std_logic;
-	signal vga_x : std_logic_vector(9 downto 0);
-	signal vga_y : std_logic_vector(9 downto 0);
-	signal img_x : std_logic_vector(lsize-1 downto 0);
+	signal vga_disp : std_logic;
+	signal vga_sx : std_logic;
+	signal vga_sy : std_logic;
+	signal xcnt : std_logic_vector(5 downto 0);
+	signal ycnt : std_logic_vector(5 downto 0);
+	signal img_x : std_logic_vector(lsize downto 0);
 	signal img_y : std_logic_vector(lsize-1 downto 0);
-	signal vga_bit : std_logic_vector(ldepth-1 downto 0);
-	signal vga_pix : std_logic_vector(3 downto 0);
+	signal vga_pix : std_logic_vector(2 downto 0);
 	signal vga_addr : std_logic_vector(7 downto 0);
 	signal vga_data : std_logic_vector(size-1 downto 0);
 	signal vga_row : image_row;
@@ -110,7 +111,7 @@ architecture Behavioral of processor is
 	signal load_data : std_logic;
 	signal load_instr : std_logic;
 	signal ready : std_logic;
-	signal halted : std_logic;
+	--signal halted : std_logic;
 	
 	signal data_loaded : std_logic;
 	signal instr_loaded : std_logic;
@@ -126,8 +127,6 @@ architecture Behavioral of processor is
 	signal ctrl : std_logic_vector(1 downto 0);
 	
 	signal next_pc : std_logic_vector(pclen-1 downto 0);
-	
-	signal start : std_logic;
 	
 begin
 	-- Instantiate the Unit Under Test (UUT)
@@ -195,67 +194,74 @@ begin
 			ce => pclk,
 			hs => Hsync,
 			vs => Vsync,
-			x => vga_x,
-			y => vga_y,
-			disp => disp
+			sx => vga_sx,
+			sy => vga_sy,
+			disp => vga_disp
 		);
 	led <= (
 		0 => instr_loaded,
 		1 => data_loaded,
 		2 => ce,
-		3 => halted,
 		others => '0');
 	seg <= (others=>'1');
 	an <= (others=>'1');
-	rst <= not btn(0);
+	rst <= not btn(3);
 	data_rst <= rst and not btn(4);
 	instr_rst <= rst and not btn(2);
 	flashrp <= rst;
 	flash_addr <= "000"&flash_page&flash_offset;
 	
-	pixelClock : process(rst,clk)
-	begin
-		if (rst = '0') then
-			pcnt <= "00";
-		elsif (rising_edge(clk)) then
-			pcnt <= pcnt + '1';
-		end if;
-	end process;
-	
-	img_x <= vga_x(7 downto 8-lsize);
-	img_y <= vga_y(7 downto 8-lsize);
-	pclk <= '1' when pcnt = "00" else '0';
-	vga_addr(7 downto lsize+ldepth) <= (others=>'0'); -- 0
-	vga_addr(lsize+ldepth-1 downto lsize) <= vga_bit; -- Depth
-	vga_addr(lsize-1 downto 0) <= img_x when vga_x(9 downto 8) = "00" else (others=>'0'); -- Row
-	vga_pix(3 downto 4-depth) <= vga_row(conv_integer(unsigned(img_y))) when vga_y(9 downto 8) = "00" and vga_x(9 downto 8) = "00" else (others=>'0');
-	vga_pix(3-depth downto 0) <= (others=>vga_pix(4-depth));
-	--vga_pix <= (others=>img_x(0) xor img_y(0));
-	vgaRed <= vga_pix(3 downto 1);
-	vgaGreen <= vga_pix(3 downto 1);
-	vgaBlue <= vga_pix(3 downto 2);
-	
-	-- Fills in the bits for vga_row based on the current row
+	-- VGA stuff
+	vga_addr(7 downto lsize+2) <= (others=>'0'); -- 0
+	vga_addr(lsize+1 downto lsize) <= pcnt; -- Depth
+	vga_addr(lsize-1 downto 0) <= img_x(lsize-1 downto 0); -- Row
+	vga_pix <= vga_row(conv_integer(unsigned(img_y))) when img_x(lsize) = '0' else (others=>'1');
+	vgaRed <= vga_pix;
+	vgaGreen <= vga_pix;
+	vgaBlue <= vga_pix(2 downto 1);
+	pclk <= '1' when pcnt = "11" else '0';
 	vgaDriver : process(rst,clk)
 	begin
 		if (rst = '0') then
-			vga_row <= (others =>(others=>'0'));
-			vga_bit <= (others=>'0');
+			pcnt <= "00";
+			img_x <= (others => '0');
+			img_y <= (others => '0');
+			xcnt <= (others =>'0');
+			ycnt <= (others =>'0');
 		elsif (rising_edge(clk)) then
-			-- Fill the proper bit for each pixel in our row with the data from the image RAM
-			for i in 0 to size-1 loop -- Iterate over each pixel
-				vga_row(i)(depth-1-conv_integer(unsigned(vga_bit))) <= vga_data(i);
-			end loop;
-			if (vga_bit = depth-1) then
-				vga_bit <= (others=>'0');
+			pcnt <= pcnt + '1';
+			if (pclk = '1') then -- When the VGA driver is enabled
+				xcnt <= xcnt + '1';
+				if (xcnt = pixel_scale-1) then
+					xcnt <= (others=>'0');
+					img_x <= img_x + '1';
+				end if;
+				if (vga_sx = '1') then
+					img_x <= (others=>'0'); -- Reset x
+					xcnt <= (others=>'0');
+					
+					ycnt <= ycnt + '1';
+					if (ycnt = pixel_scale-1) then
+						ycnt <= (others=>'0');
+						img_y <= img_y + '1';
+					end if;
+					if (vga_sy = '1') then
+						img_y <= (others=>'0');
+						ycnt <= (others=>'0');
+					end if;
+				end if;
 			else
-				vga_bit <= vga_bit + '1';
+				-- Fill the proper bit for each pixel in our row with the data from the image RAM
+				for i in 0 to size-1 loop -- Iterate over each pixel
+					vga_row(i)(2-conv_integer(unsigned(pcnt))) <= vga_data(i);
+				end loop;
 			end if;
 		end if;
 	end process;
 	
+	
 	-- Priority encoder
-	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,start,img_out,img_addr,img_we,sw)
+	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,img_out,img_addr,img_we,sw)
 	begin
 		load_instr <= '0';
 		load_data <= '0';
@@ -281,7 +287,7 @@ begin
 			data_we <= flash_ready;
 			flash_page <= x"2"&sw(7 downto 4);
 			flash_offset(ld_data_addr'RANGE) <= ld_data_addr;
-		elsif (start = '1') then
+		else
 			ready <= '1';
 			data_data <= img_out;
 			data_addr <= img_addr;
@@ -323,17 +329,14 @@ begin
 	end process;
 	
 	-- Control unit
+	next_pc <= pc + '1';
+	pe_instr <= instr(21 downto 0);
+	ctrl <= instr(31 downto 30);
+	
 	north <= (others => '1');
 	south <= img_in when ctrl = LOAD else (others => '1');
 	east <= (others => '1');
 	west <= (others=>'1');
-	
-	next_pc <= pc + '1';
-	pe_instr <= instr(21 downto 0);
-	ctrl <= instr(31 downto 30);
-	halted <= '1' when (ready = '1' and ctrl = HALT) else '0';
-	ce <= '1' when ready = '1' and halted = '0' else '0';
-	
 	img_addr <= instr(29 downto 22);
 	img_we <= '1' when ce = '1' and ctrl = SAVE else '0';
 	process(rst,clk)
@@ -341,14 +344,17 @@ begin
 		if (rst = '0') then
 			pc <= (others=>'0');
 			instr <= (others=>'0');
-			start <= '0';
+			ce <= '0';
 		elsif (clk'event and clk = '1') then
 			instr <= next_instr;
-			if (btn(3) = '1') then
-				start <= '1';
-			end if;
 			if (ce = '1') then
+				if (ctrl = HALT) then
+					ce <= '0';
+				end if;
 				pc <= next_pc;
+			elsif (ready = '1' and btn(0) = '1') then
+				ce <= '1';
+				pc <= (others=>'0');
 			end if;
 		end if;
 	end process;

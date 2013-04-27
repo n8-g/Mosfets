@@ -37,67 +37,65 @@ entity vga is
 		ce : in std_logic;
 		hs : out std_logic;
 		vs : out std_logic;
-		x : out std_logic_vector(9 downto 0);
-		y : out std_logic_vector(9 downto 0);
+		sx : out std_logic;
+		sy : out std_logic;
 		disp : out std_logic
 	);
 end vga;
 
 architecture Behavioral of vga is
+	constant WIDTH : integer := 640;
+	constant HEIGHT : integer := 480;
+	
+	constant HFP : integer := WIDTH; -- Horizontal front porch start time
+	constant HSP : integer := HFP + 16; -- Horizontal sync pulse start time
+	constant HBP : integer := HSP + 96; -- Horizontal back porch start time
+	constant HEND : integer := HBP + 48; -- Horizontal end
+	
+	constant VFP : integer := HEIGHT; -- Vertical front porch start time
+	constant VSP : integer := VFP + 2; -- Vertical sync pulse start time
+	constant VBP : integer := VSP + 10; -- Vertical back porch start time
+	constant VEND : integer := VBP + 29; -- Vertical end
+	
 	signal hcount : std_logic_vector(9 downto 0);
 	signal vcount : std_logic_vector(9 downto 0);
 	signal hdisp : std_logic;
 	signal vdisp : std_logic;
-	signal xcnt : std_logic_vector(9 downto 0);
-	signal ycnt : std_logic_vector(9 downto 0);
 begin
 	disp <= hdisp and vdisp;
-	x <= xcnt;
-	y <= ycnt;
+	sx <= '1' when hcount = HEND-1 else '0';
+	sy <= '1' when vcount = VEND-1 else '0';
 	process (clk,rst)
 	begin
 		if (rst = '0') then
-			hs <= '0';
-			vs <= '0';
+			hdisp <= '1';
+			vdisp <= '1';
+			hs <= '1';
+			vs <= '1';
 			hcount <= (others => '0');
 			vcount <= (others => '0');
-			hdisp <= '0';
-			vdisp <= '0';
-			xcnt <= (others=>'0');
-			ycnt <= (others=>'0');
 		elsif (clk'event and clk = '1') then
 			if (ce = '1') then
-				if (hdisp = '1') then
-					xcnt <= xcnt + '1';
-				else
-					xcnt <= (others=>'0');
-				end if;
 				hcount <= hcount + '1';
-				if (hcount = 96) then
-					hs <= '1'; -- Clear horizontal sync, begin back porch
-				elsif (hcount = 144) then
-					hdisp <= '1';
-				elsif (hcount = 784) then
+				if (hcount = HFP-1) then
 					hdisp <= '0';
-				elsif (hcount = 800) then -- End of row
-					if (vdisp = '1') then
-						ycnt <= ycnt + '1';
-					else
-						ycnt <= (others=>'0');
-					end if;
-					hcount <= (others => '0');
+				elsif (hcount = HSP-1) then
 					hs <= '0';
+				elsif (hcount = HBP-1) then
+					hs <= '1';
+				elsif (hcount = HEND-1) then
 					vcount <= vcount + '1';
-					if (vcount = 2) then
-						vs <= '1'; -- Clear vertical sync
-					elsif (vcount = 31) then
-						vdisp <= '1'; -- Set vertical ready
-						vs <= '1';
-					elsif (vcount = 509) then
-						vdisp <= '0'; 
-					elsif (vcount = 521) then
-						vcount <= (others => '0');
+					hcount <= (others=>'0');
+					hdisp <= '1';
+					if (vcount = VFP-1) then
+						vdisp <= '0';
+					elsif (vcount = VSP-1) then
 						vs <= '0';
+					elsif (vcount = VBP-1) then
+						vs <= '1';
+					elsif (vcount = VEND-1) then
+						vcount <= (others=>'0');
+						vdisp <= '1';
 					end if;
 				end if;
 			end if;
