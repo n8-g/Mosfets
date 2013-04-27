@@ -193,7 +193,7 @@ int parse_instr(FILE* out)
 			if (next_token(&val,lex) != INT)
 				return error("Expected: integer");
 			instr |= 1 << RAM_OFF;
-			instr |= ((val & 0xFF) << IMGADDR_OFF);
+			instr |= ((val & 0xFF) << ADDR_OFF);
 			if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
 		}
 		else if (!strcmp(lex,"FLAG")) // Flag assignment
@@ -236,9 +236,8 @@ int parse_instr(FILE* out)
 				if (next_token(&val,lex) != INT)
 					return error("Expected: integer");
 				instr |= (IN_RAM << INSEL_OFF);
-				instr |= ((val & 0xFF) << IMGADDR_OFF);
+				instr |= ((val & 0xFF) << ADDR_OFF);
 				if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
-		
 			}
 			else
 				return error("Unknown operand: '%s'",lex);
