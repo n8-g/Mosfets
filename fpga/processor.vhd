@@ -72,16 +72,17 @@ architecture Behavioral of processor is
 	
 	signal pcnt : std_logic_vector(1 downto 0);
 	signal pclk : std_logic;
+	signal xcnt : std_logic_vector(5 downto 0);
+	signal ycnt : std_logic_vector(5 downto 0);
 	signal vga_disp : std_logic;
 	signal vga_sx : std_logic;
 	signal vga_sy : std_logic;
-	signal xcnt : std_logic_vector(5 downto 0);
-	signal ycnt : std_logic_vector(5 downto 0);
-	signal img_x : std_logic_vector(lsize downto 0);
-	signal img_y : std_logic_vector(lsize-1 downto 0);
 	signal vga_pix : std_logic_vector(2 downto 0);
 	signal vga_addr : std_logic_vector(7 downto 0);
 	signal vga_data : std_logic_vector(size-1 downto 0);
+	signal vga_val : std_logic_vector(2 downto 0);
+	signal img_x : std_logic_vector(lsize downto 0);
+	signal img_y : std_logic_vector(lsize-1 downto 0);
 	signal vga_row : image_row;
 	
 	signal pe_instr : std_logic_vector(21 downto 0);
@@ -105,8 +106,10 @@ architecture Behavioral of processor is
 	signal ld_instr_loword : std_logic_vector(15 downto 0);
 	
 	signal data_we : std_logic;
-	signal data_addr : std_logic_vector(7 downto 0);
-	signal data_data : std_logic_vector(size-1 downto 0);
+	signal data_inaddr : std_logic_vector(7 downto 0);
+	signal data_outaddr : std_logic_vector(7 downto 0);
+	signal data_in : std_logic_vector(size-1 downto 0);
+	signal data_out : std_logic_vector(size-1 downto 0);
 	
 	signal load_data : std_logic;
 	signal load_instr : std_logic;
@@ -117,13 +120,15 @@ architecture Behavioral of processor is
 	signal instr_loaded : std_logic;
 	
 	signal img_we : std_logic;
-	signal img_addr : std_logic_vector(7 downto 0);
+	signal img_outaddr : std_logic_vector(7 downto 0);
+	signal img_inaddr : std_logic_vector(7 downto 0);
 	signal img_in : std_logic_vector(size-1 downto 0);
 	signal img_out : std_logic_vector(size-1 downto 0);
 
 	signal pc : std_logic_vector(pclen-1 downto 0);
 	signal instr : std_logic_vector(31 downto 0);
 	signal next_instr : std_logic_vector(31 downto 0);
+	signal instr_valid : std_logic;
 	signal ctrl : std_logic_vector(1 downto 0);
 	
 	signal next_pc : std_logic_vector(pclen-1 downto 0);
@@ -151,25 +156,31 @@ begin
 			set_news=>pe_instr(SETNEWS_OFF),
 			outdata => img_out
 	  );
-	instr_cache : entity work.instr_ram 
+	instr_cache : entity work.block_memory
+		generic map(depth => pclen, width => 32)
 		port map (
 			clk => clk,
-			a => ld_instr_addr(pclen downto 1),
-			d => ld_instr_data,
-			we => ld_instr_we,
-			spo => open,
-			dpra => pc,
-			dpo => next_instr
+			a_addr => ld_instr_addr(pclen downto 1),
+			a_din => ld_instr_data,
+			a_we => ld_instr_we,
+			a_dout => open,
+			b_addr => pc,
+			b_dout => next_instr,
+			b_we => '0',
+			b_din => (others=>'0')
 		);
-	data_cache : entity work.data_ram
+	data_cache : entity work.block_memory
+		generic map (depth => 8,width => 16)
 		port map (
 			clk => clk,
-			a => data_addr,
-			d => data_data,
-			we => data_we,
-			spo => img_in,
-			dpra => vga_addr,
-			dpo => vga_data
+			a_addr => data_inaddr,
+			a_din => data_in,
+			a_we => data_we,
+			a_dout => open,
+			b_addr => data_outaddr,
+			b_din => (others=>'0'),
+			b_we => '0',
+			b_dout => data_out
 		);
 	flash_mem : entity work.async_ram generic map (cycle => 12)
 		port map (
@@ -214,12 +225,16 @@ begin
 	-- VGA stuff
 	vga_addr(7 downto lsize+2) <= (others=>'0'); -- 0
 	vga_addr(lsize+1 downto lsize) <= pcnt; -- Depth
-	vga_addr(lsize-1 downto 0) <= img_x(lsize-1 downto 0); -- Row
-	vga_pix <= vga_row(conv_integer(unsigned(img_y))) when img_x(lsize) = '0' else (others=>'1');
-	vgaRed <= vga_pix;
-	vgaGreen <= vga_pix;
-	vgaBlue <= vga_pix(2 downto 1);
-	pclk <= '1' when pcnt = "11" else '0';
+	vga_addr(lsize-1 downto 0) <= img_y(lsize-1 downto 0); -- Row
+	vga_data <= data_out when ce = '0' else (others=>'0');
+	vga_pix <= vga_row(conv_integer(unsigned(img_x(lsize-1 downto 0)))) when img_x(lsize) = '0' else (others=>'1');
+	vga_val <= (others=>'0') when vga_disp = '0' else
+					vga_pix when sw(7)='1' else 
+					(others=>vga_pix(2));
+	vgaRed <= vga_val;
+	vgaGreen <= vga_val;
+	vgaBlue <= vga_val(2 downto 1);
+	pclk <= '1' when pcnt = "00" else '0';
 	vgaDriver : process(rst,clk)
 	begin
 		if (rst = '0') then
@@ -250,23 +265,21 @@ begin
 						ycnt <= (others=>'0');
 					end if;
 				end if;
-			else
-				-- Fill the proper bit for each pixel in our row with the data from the image RAM
-				for i in 0 to size-1 loop -- Iterate over each pixel
-					case pcnt is
-						when "00" => vga_row(i)(2) <= vga_data(i);
-						when "01" => vga_row(i)(1) <= vga_data(i);
-						when "10" => vga_row(i)(0) <= vga_data(i);
-						when others =>
-					end case;
-				end loop;
 			end if;
+			-- Fill the proper bit for each pixel in our row with the data from the image RAM
+			for i in 0 to size-1 loop -- Iterate over each pixel
+				case pcnt is -- Note that the value of vga_data was fetched on the previous clock cycle
+					when "01" => vga_row(i)(2) <= vga_data(i);
+					when "10" => vga_row(i)(1) <= vga_data(i);
+					when "11" => vga_row(i)(0) <= vga_data(i);
+					when others =>
+				end case;
+			end loop;
 		end if;
 	end process;
 	
-	
 	-- Priority encoder
-	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,img_out,img_addr,img_we,sw)
+	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,img_out,img_inaddr,img_outaddr,img_we,sw,ce,vga_addr)
 	begin
 		load_instr <= '0';
 		load_data <= '0';
@@ -275,28 +288,34 @@ begin
 		flash_offset <= (others=>'0');
 		flash_en <= '0';
 		ld_instr_we <= '0';
-		data_data <= (others=>'0');
-		data_addr <= (others=>'0');
+		data_in <= (others=>'0');
+		data_inaddr <= (others=>'0');
+		data_outaddr <= (others=>'0');
 		data_we <= '0';
 		if (instr_loaded = '0') then
 			load_instr <= '1';
 			flash_en <= '1';
 			ld_instr_we <= flash_ready and ld_instr_addr(0);
-			flash_page <= x"1"&sw(3 downto 0);
+			flash_page <= x"1"&sw(2 downto 0)&'0';
 			flash_offset(ld_instr_addr'RANGE) <= ld_instr_addr;
 		elsif (data_loaded = '0') then
 			load_data <= '1';
 			flash_en <= '1';
-			data_data <= flash_data;
-			data_addr <= ld_data_addr;
+			data_in <= flash_data;
+			data_inaddr <= ld_data_addr;
 			data_we <= flash_ready;
-			flash_page <= x"2"&sw(7 downto 4);
+			flash_page <= x"2"&sw(5 downto 3)&'0';
 			flash_offset(ld_data_addr'RANGE) <= ld_data_addr;
 		else
 			ready <= '1';
-			data_data <= img_out;
-			data_addr <= img_addr;
-			data_we <= img_we;
+			if (ce = '1') then
+				data_in <= img_out;
+				data_inaddr <= img_outaddr;
+				data_outaddr <= img_inaddr;
+				data_we <= img_we;
+			else
+				data_outaddr <= vga_addr;
+			end if;
 		end if;
 	end process;
 	
@@ -342,16 +361,20 @@ begin
 	south <= img_in when ctrl = LOAD else (others => '1');
 	east <= (others => '1');
 	west <= (others=>'1');
-	img_addr <= instr(29 downto 22);
+	img_in <= data_out;
+	img_outaddr <= instr(29 downto 22);
+	img_inaddr <= next_instr(29 downto 22); -- Since we're using block ram, start the fetch for the NEXT instruction
 	img_we <= '1' when ce = '1' and ctrl = SAVE else '0';
 	process(rst,clk)
 	begin
 		if (rst = '0') then
 			pc <= (others=>'0');
 			instr <= (others=>'0');
+			instr_valid <= '0';
 			ce <= '0';
 		elsif (clk'event and clk = '1') then
 			instr <= next_instr;
+			instr_valid <= '1';
 			if (ce = '1') then
 				if (ctrl = HALT) then
 					ce <= '0';
