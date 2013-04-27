@@ -253,7 +253,12 @@ begin
 			else
 				-- Fill the proper bit for each pixel in our row with the data from the image RAM
 				for i in 0 to size-1 loop -- Iterate over each pixel
-					vga_row(i)(2-conv_integer(unsigned(pcnt))) <= vga_data(i);
+					case pcnt is
+						when "00" => vga_row(i)(2) <= vga_data(i);
+						when "01" => vga_row(i)(1) <= vga_data(i);
+						when "10" => vga_row(i)(0) <= vga_data(i);
+						when others =>
+					end case;
 				end loop;
 			end if;
 		end if;

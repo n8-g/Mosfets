@@ -92,7 +92,7 @@ begin
 	news(0)(size+1) <= '0';
 	news(size+1)(0) <= '0';
 	news(size+1)(size+1) <= '0';
-	outdata <= news(0)(size downto 1); -- Output top row
+	outdata <= news(1)(size downto 1); -- Output top row
 			
 end Behavioral;
 

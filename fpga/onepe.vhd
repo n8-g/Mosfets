@@ -105,8 +105,13 @@ begin
 		1 => sw(1),
 		0 => sw(0)
 	);
-	seg <= (others=>'1');
-	an <= (others=>'1');
+	an <= "1101";
+	seg(7) <= not halt;
+	seg(6) <= not output;
+	seg(0) <= not sw(3);
+	seg(2 downto 1) <= (others=>not sw(2));
+	seg(3) <= not sw(1);
+	seg(5 downto 4) <= (others=>not sw(0));
 	ce <= start and (not halt);
 	rst <= not btn(1);
 	clrcar <= '0';
@@ -124,8 +129,8 @@ begin
 	vgaRed <= (others=>'0');
 	vgaGreen <= (others=>'0');
 	vgaBlue <= (others=>'0');
-	Hsync <= '0';
-	Vsync <= '0';
+	Hsync <= '1';
+	Vsync <= '1';
 	
 	instr_rom : process (addr)
 	begin
