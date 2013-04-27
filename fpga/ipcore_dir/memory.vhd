@@ -42,13 +42,11 @@ LIBRARY XilinxCoreLib;
 -- synthesis translate_on
 ENTITY memory IS
   PORT (
-    a : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    d : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-    dpra : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    d : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
     clk : IN STD_LOGIC;
     we : IN STD_LOGIC;
-    spo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
-    dpo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+    spo : OUT STD_LOGIC_VECTOR(0 DOWNTO 0)
   );
 END memory;
 
@@ -56,27 +54,25 @@ ARCHITECTURE memory_a OF memory IS
 -- synthesis translate_off
 COMPONENT wrapped_memory
   PORT (
-    a : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    d : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-    dpra : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    d : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
     clk : IN STD_LOGIC;
     we : IN STD_LOGIC;
-    spo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
-    dpo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+    spo : OUT STD_LOGIC_VECTOR(0 DOWNTO 0)
   );
 END COMPONENT;
 
 -- Configuration specification
   FOR ALL : wrapped_memory USE ENTITY XilinxCoreLib.dist_mem_gen_v7_2(behavioral)
     GENERIC MAP (
-      c_addr_width => 9,
+      c_addr_width => 8,
       c_default_data => "0",
-      c_depth => 512,
+      c_depth => 256,
       c_family => "spartan6",
       c_has_clk => 1,
       c_has_d => 1,
-      c_has_dpo => 1,
-      c_has_dpra => 1,
+      c_has_dpo => 0,
+      c_has_dpra => 0,
       c_has_i_ce => 0,
       c_has_qdpo => 0,
       c_has_qdpo_ce => 0,
@@ -91,7 +87,7 @@ END COMPONENT;
       c_has_spra => 0,
       c_has_we => 1,
       c_mem_init_file => "no_coe_file_loaded",
-      c_mem_type => 2,
+      c_mem_type => 1,
       c_parser_type => 1,
       c_pipeline_stages => 0,
       c_qce_joined => 0,
@@ -100,7 +96,7 @@ END COMPONENT;
       c_reg_a_d_inputs => 0,
       c_reg_dpra_input => 0,
       c_sync_enable => 1,
-      c_width => 32
+      c_width => 1
     );
 -- synthesis translate_on
 BEGIN
@@ -109,11 +105,9 @@ U0 : wrapped_memory
   PORT MAP (
     a => a,
     d => d,
-    dpra => dpra,
     clk => clk,
     we => we,
-    spo => spo,
-    dpo => dpo
+    spo => spo
   );
 -- synthesis translate_on
 

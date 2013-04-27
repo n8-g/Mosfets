@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 --
--- DIST MEM GEN Core - Stimulus Generator For Dual Port RAM Configuration
+-- DIST MEM GEN Core - Stimulus Generator For Single Port RAM Configuration
 --
 --------------------------------------------------------------------------------
 --
@@ -78,16 +78,16 @@ USE work.ALL;
 USE work.memory_TB_PKG.ALL;
 
 
-ENTITY REGISTER_LOGIC_DRAM IS
+ENTITY REGISTER_LOGIC_SRAM IS
   PORT(
     Q   : OUT STD_LOGIC;
     CLK : IN STD_LOGIC;
     RST : IN STD_LOGIC;
     D   : IN STD_LOGIC
   );
-END REGISTER_LOGIC_DRAM;
+END REGISTER_LOGIC_SRAM;
 
-ARCHITECTURE REGISTER_ARCH OF REGISTER_LOGIC_DRAM IS
+ARCHITECTURE REGISTER_ARCH OF REGISTER_LOGIC_SRAM IS
   SIGNAL Q_O : STD_LOGIC :='0';
 BEGIN
   Q <= Q_O;
@@ -114,376 +114,123 @@ USE work.ALL;
 USE work.memory_TB_PKG.ALL;
 
 ENTITY memory_TB_STIM_GEN IS
-  PORT(
+  PORT (
     CLK : IN STD_LOGIC;
     RST : IN STD_LOGIC;
-    A   : OUT  STD_LOGIC_VECTOR(9-1 downto 0)   := (OTHERS => '0'); 
-    D   : OUT  STD_LOGIC_VECTOR(32-1 downto 0)        := (OTHERS => '0');
-    DPRA : OUT  STD_LOGIC_VECTOR(9-1 downto 0)   := (OTHERS => '0');
+    A   : OUT  STD_LOGIC_VECTOR(8-1 downto 0)   := (OTHERS => '0'); 
+    D   : OUT  STD_LOGIC_VECTOR(1-1 downto 0)         := (OTHERS => '0');
     WE         : OUT  STD_LOGIC  := '0';
-    DATA_IN : IN STD_LOGIC_VECTOR (31 DOWNTO 0);   --OUTPUT VECTOR 
-    DATA_IN_B : IN STD_LOGIC_VECTOR (31 DOWNTO 0);   --OUTPUT VECTOR 
+    DATA_IN : IN STD_LOGIC_VECTOR (0 DOWNTO 0);   --OUTPUT VECTOR 
         
-        
-    CHECK_DATA : OUT STD_LOGIC_VECTOR(1 downto 0)   := (OTHERS => '0')
+    CHECK_DATA : OUT STD_LOGIC:= '0'
     	  );
 END memory_TB_STIM_GEN;
 
 ARCHITECTURE BEHAVIORAL OF memory_TB_STIM_GEN IS
+
   CONSTANT ZERO           : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
   CONSTANT DATA_PART_CNT_A: INTEGER:=1;
-  CONSTANT DATA_PART_CNT_B: INTEGER:=1;
-  SIGNAL   WRITE_ADDR_A   : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
-  SIGNAL   WRITE_ADDR_B   : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
-  SIGNAL   WRITE_ADDR_INT_A : STD_LOGIC_VECTOR(8 DOWNTO 0)   := (OTHERS => '0');
-  SIGNAL   WRITE_ADDR_INT_B : STD_LOGIC_VECTOR(8 DOWNTO 0)   := (OTHERS => '0');
-  SIGNAL   DO_READ_REG_A  : STD_LOGIC_VECTOR(4 DOWNTO 0)                 :=(OTHERS => '0');
-  SIGNAL   DO_READ_REG_B  : STD_LOGIC_VECTOR(4 DOWNTO 0)                 :=(OTHERS => '0');
-  SIGNAL   READ_ADDR_INT_A  : STD_LOGIC_VECTOR(8 DOWNTO 0)   := (OTHERS => '0');
-  SIGNAL   READ_ADDR_INT_B  : STD_LOGIC_VECTOR(8 DOWNTO 0)   := (OTHERS => '0');
-  SIGNAL   READ_ADDR_A    : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
-  SIGNAL   READ_ADDR_B    : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
-  SIGNAL   D_INT_A        : STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL   D_INT_B        : STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL   DO_WRITE_A     : STD_LOGIC                                    := '0';
-  SIGNAL   DO_WRITE_B     : STD_LOGIC                                    := '0';
+  SIGNAL   WRITE_ADDR     : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
+  SIGNAL   WRITE_ADDR_INT : STD_LOGIC_VECTOR(7 DOWNTO 0)   := (OTHERS => '0');
+  SIGNAL   DO_READ_REG    : STD_LOGIC_VECTOR(4 DOWNTO 0)                 :=(OTHERS => '0');
+  SIGNAL   READ_ADDR_INT  : STD_LOGIC_VECTOR(7 DOWNTO 0)   := (OTHERS => '0');
+  SIGNAL   READ_ADDR      : STD_LOGIC_VECTOR(31 DOWNTO 0)                := (OTHERS => '0');
+  SIGNAL   D_INT          : STD_LOGIC_VECTOR(0 DOWNTO 0) := (OTHERS => '0');
   SIGNAL   DO_WRITE       : STD_LOGIC                                    := '0';
-  SIGNAL   DO_READ_A      : STD_LOGIC                                    := '0';
-  SIGNAL   DO_READ_B      : STD_LOGIC                                    := '0';
-  SIGNAL COUNT : integer := 0;
-  SIGNAL COUNT_B : integer := 0;
-  CONSTANT WRITE_CNT_A : integer := 8;
-  CONSTANT READ_CNT_A : integer := 8;
-  CONSTANT WRITE_CNT_B : integer := 8;
-  CONSTANT READ_CNT_B : integer := 8;
-  
-  signal porta_wr_rd : std_logic:='0';     
-  signal portb_wr_rd : std_logic:='0';     
-  signal porta_wr_rd_complete: std_logic:='0';
-  signal portb_wr_rd_complete: std_logic:='0';
-  signal incr_cnt : std_logic :='0';
-  signal incr_cnt_b : std_logic :='0';
-  
-  SIGNAL PORTB_WR_RD_HAPPENED: STD_LOGIC :='0';
-  SIGNAL LATCH_PORTA_WR_RD_COMPLETE : STD_LOGIC :='0';
-  SIGNAL PORTA_WR_RD_L1 :STD_LOGIC :='0';
-  SIGNAL PORTA_WR_RD_L2 :STD_LOGIC :='0';
-  SIGNAL PORTB_WR_RD_R1 :STD_LOGIC :='0';
-  SIGNAL PORTB_WR_RD_R2 :STD_LOGIC :='0';
-  SIGNAL PORTA_WR_RD_HAPPENED: STD_LOGIC :='0';
-  SIGNAL LATCH_PORTB_WR_RD_COMPLETE : STD_LOGIC :='0';
-  SIGNAL PORTB_WR_RD_L1 :STD_LOGIC :='0';
-  SIGNAL PORTB_WR_RD_L2 :STD_LOGIC :='0';
-  SIGNAL PORTA_WR_RD_R1 :STD_LOGIC :='0';
-  SIGNAL PORTA_WR_RD_R2 :STD_LOGIC :='0';
+  SIGNAL   DO_READ        : STD_LOGIC                                    := '0';
+  SIGNAL   COUNT_NO       : INTEGER                                      :=0;
 BEGIN
-  WRITE_ADDR_INT_A(8 DOWNTO 0) <= WRITE_ADDR_A(8 DOWNTO 0);
-  READ_ADDR_INT_A(8 DOWNTO 0)  <= READ_ADDR_A(8 DOWNTO 0);
-  WRITE_ADDR_INT_B(8 DOWNTO 0) <= WRITE_ADDR_B(8 DOWNTO 0);
-  READ_ADDR_INT_B(8 DOWNTO 0)  <= READ_ADDR_B(8 DOWNTO 0);
-  A <= IF_THEN_ELSE(DO_WRITE_A='1',WRITE_ADDR_INT_A,READ_ADDR_INT_A); 
-  D <= IF_THEN_ELSE(DO_WRITE_A='1',D_INT_A,D_INT_B);
-  DPRA <= IF_THEN_ELSE(DO_WRITE_B='1',WRITE_ADDR_INT_B,READ_ADDR_INT_B);
-  CHECK_DATA(0) <= DO_READ_A;
-  CHECK_DATA(1) <= DO_READ_B;
-  DO_WRITE <= DO_WRITE_A OR DO_WRITE_B;
+  WRITE_ADDR_INT(7 DOWNTO 0) <= WRITE_ADDR(7 DOWNTO 0);
+  READ_ADDR_INT(7 DOWNTO 0)  <= READ_ADDR(7 DOWNTO 0);
+  A <= IF_THEN_ELSE(DO_WRITE='1',WRITE_ADDR_INT,READ_ADDR_INT); 
+  D <= D_INT;
+  CHECK_DATA <= DO_READ;
 
-RD_GEN_INST_A:ENTITY work.memory_TB_AGEN
+RD_AGEN_INST:ENTITY work.memory_TB_AGEN
   GENERIC MAP( 
-    C_MAX_DEPTH => 512 
+    C_MAX_DEPTH => 256 
   )
   PORT MAP(
     CLK        => CLK,
     RST        => RST,
-    EN         => DO_READ_A,
+    EN         => DO_READ,
     LOAD       => '0',
     LOAD_VALUE => ZERO,
-    ADDR_OUT   => READ_ADDR_A
+    ADDR_OUT   => READ_ADDR
   );
 
-WR_AGEN_INST_A:ENTITY work.memory_TB_AGEN
+WR_AGEN_INST:ENTITY work.memory_TB_AGEN
   GENERIC MAP(
-    C_MAX_DEPTH => 512  )
+    C_MAX_DEPTH => 256  )
   PORT MAP(
     CLK        => CLK,
   	 RST        => RST,
-	 EN         => DO_WRITE_A,
+	 EN         => DO_WRITE,
     LOAD       => '0',
  	 LOAD_VALUE => ZERO,
- 	 ADDR_OUT   => WRITE_ADDR_A
+ 	 ADDR_OUT   => WRITE_ADDR
   );
 
-WR_DGEN_INST_A:ENTITY work.memory_TB_DGEN
-  GENERIC MAP (
-    DATA_GEN_WIDTH => 32,
-    DOUT_WIDTH     => 32,
-    DATA_PART_CNT  => DATA_PART_CNT_A,
-    SEED           => 2
-  )
-  PORT MAP (
-    CLK      => CLK,
-	  RST      => RST,
-    EN       => DO_WRITE_A,
-    DATA_OUT => D_INT_A          
-  );
-
-RD_AGEN_INST_B:ENTITY work.memory_TB_AGEN
-  GENERIC MAP( 
-    C_MAX_DEPTH => 512 
-  )
-  PORT MAP(
-    CLK        => CLK,
-    RST        => RST,
-    EN         => DO_READ_B,
-    LOAD       => '0',
-    LOAD_VALUE => ZERO,
-    ADDR_OUT   => READ_ADDR_B
-  );
-
-WR_AGEN_INST_B:ENTITY work.memory_TB_AGEN
-  GENERIC MAP(
-    C_MAX_DEPTH => 512  )
-  PORT MAP(
-    CLK        => CLK,
-  	 RST        => RST,
-	 EN         => DO_WRITE_B,
-    LOAD       => '0',
- 	 LOAD_VALUE => ZERO,
- 	 ADDR_OUT   => WRITE_ADDR_B
-  );
-
-WR_DGEN_INST_B:ENTITY work.memory_TB_DGEN
-  GENERIC MAP (
-    DATA_GEN_WIDTH => 32,
-    DOUT_WIDTH     => 32,
-    DATA_PART_CNT  => DATA_PART_CNT_B,
-    SEED           => 2
+WR_DGEN_INST:ENTITY work.memory_TB_DGEN
+   GENERIC MAP (
+     DATA_GEN_WIDTH => 1,
+     DOUT_WIDTH     => 1,
+     DATA_PART_CNT  => DATA_PART_CNT_A,
+     SEED           => 2
    )
-  PORT MAP (
-    CLK        => CLK,
- 	 RST      => RST,
-    EN       => DO_WRITE_B,
-    DATA_OUT => D_INT_B          
+   PORT MAP (
+     CLK      => CLK,
+ 	  RST      => RST,
+     EN       => DO_WRITE,
+     DATA_OUT => D_INT          
    );
 
-PROCESS(CLK)
+WR_RD_PROCESS: PROCESS (CLK)
 BEGIN
   IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      LATCH_PORTB_WR_RD_COMPLETE<='0';
-    ELSIF(PORTB_WR_RD_COMPLETE='1') THEN
-      LATCH_PORTB_WR_RD_COMPLETE <='1';
-    ELSIF(PORTA_WR_RD_HAPPENED='1') THEN
-      LATCH_PORTB_WR_RD_COMPLETE<='0';
-    END IF;
+     IF(RST='1') THEN
+ 	    DO_WRITE <= '0';
+       DO_READ  <= '0';
+       COUNT_NO <=  0 ;
+     ELSIF(COUNT_NO < 4) THEN
+ 	    DO_WRITE <= '1';
+       DO_READ  <= '0';
+       COUNT_NO <= COUNT_NO + 1;
+     ELSIF(COUNT_NO< 8) THEN
+	    DO_WRITE <= '0';
+       DO_READ  <= '1';
+       COUNT_NO <= COUNT_NO + 1;
+     ELSIF(COUNT_NO=8) THEN
+       DO_WRITE <= '0';
+       DO_READ  <= '0';
+       COUNT_NO <=  0 ;
+     END IF;
   END IF;
 END PROCESS;
-
-PROCESS(CLK)
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      PORTB_WR_RD_L1 <='0';
-      PORTB_WR_RD_L2 <='0';
-    ELSE
-     PORTB_WR_RD_L1 <= LATCH_PORTB_WR_RD_COMPLETE;
-     PORTB_WR_RD_L2 <= PORTB_WR_RD_L1;
-    END IF;
- END IF;
-END PROCESS;
-
-PORTA_WR_RD_EN: PROCESS(CLK)
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      PORTA_WR_RD <='1';
-    ELSE
-      PORTA_WR_RD <= PORTB_WR_RD_L2;
-    END IF;
-  END IF;
-END PROCESS;
-
-PROCESS(CLK)
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      PORTA_WR_RD_R1 <='0';
-      PORTA_WR_RD_R2 <='0';
-    ELSE
-      PORTA_WR_RD_R1 <=PORTA_WR_RD;
-      PORTA_WR_RD_R2 <=PORTA_WR_RD_R1;
-    END IF;
- END IF;
-END PROCESS;
-
-PORTA_WR_RD_HAPPENED <= PORTA_WR_RD_R2;
-
-PROCESS(CLK) 
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      LATCH_PORTA_WR_RD_COMPLETE<='0';
-    ELSIF(PORTA_WR_RD_COMPLETE='1') THEN
-      LATCH_PORTA_WR_RD_COMPLETE <='1';
-    ELSIF(PORTB_WR_RD_HAPPENED='1') THEN
-      LATCH_PORTA_WR_RD_COMPLETE<='0';
-    END IF;
-  END IF;
-END PROCESS;
-
-PROCESS(CLK)
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      PORTA_WR_RD_L1 <='0';
-      PORTA_WR_RD_L2 <='0';
-    ELSE
-     PORTA_WR_RD_L1 <= LATCH_PORTA_WR_RD_COMPLETE;
-     PORTA_WR_RD_L2 <= PORTA_WR_RD_L1;
-    END IF;
- END IF;
-END PROCESS;
-
-
-PORTB_EN: PROCESS(CLK)
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      PORTB_WR_RD <='0';
-    ELSE
-      PORTB_WR_RD <= PORTA_WR_RD_L2;
-    END IF;
-  END IF;
-END PROCESS;
-
-PROCESS(CLK)
-BEGIN
-  IF(RISING_EDGE(CLK)) THEN
-    IF(RST='1') THEN
-      PORTB_WR_RD_R1 <='0';
-      PORTB_WR_RD_R2 <='0';
-    ELSE
-      PORTB_WR_RD_R1 <=PORTB_WR_RD;
-      PORTB_WR_RD_R2 <=PORTB_WR_RD_R1;
-    END IF;
- END IF;
-END PROCESS;
-
----double registered of porta complete on portb clk
-PORTB_WR_RD_HAPPENED <= PORTB_WR_RD_R2; 
-
-PORTA_WR_RD_COMPLETE <= '1' when count=(WRITE_CNT_A+READ_CNT_A) else '0';
-
-start_counter: process(CLK)
-begin
-  if(rising_edge(CLK)) then
-    if(RST='1') then
-       incr_cnt <= '0';
-     elsif(porta_wr_rd ='1') then
-       incr_cnt <='1';
-     elsif(porta_wr_rd_complete='1') then
-       incr_cnt <='0';
-     end if;
-  end if;
-end process;
-
-COUNTER: process(CLK)
-begin
-  if(rising_edge(CLK)) then
-    if(RST='1') then
-      count <= 0;
-    elsif(incr_cnt='1') then
-      count<=count+1;
-    end if;
-    if(count=(WRITE_CNT_A+READ_CNT_A)) then
-      count<=0;
-    end if;
- end if;
-end process;
-
-DO_WRITE_A<='1' when (count <WRITE_CNT_A and incr_cnt='1') else '0';
-DO_READ_A <='1' when (count >WRITE_CNT_A and incr_cnt='1') else '0';
-
-PORTB_WR_RD_COMPLETE <= '1' when count_b=(WRITE_CNT_B+READ_CNT_B) else '0';
-
-startb_counter: process(CLK)
-begin
-  if(rising_edge(CLK)) then
-    if(RST='1') then
-       incr_cnt_b <= '0';
-     elsif(portb_wr_rd ='1') then
-       incr_cnt_b <='1';
-     elsif(portb_wr_rd_complete='1') then
-       incr_cnt_b <='0';
-     end if;
-  end if;
-end process;
-
-COUNTER_B: process(CLK)
-begin
-  if(rising_edge(CLK)) then
-    if(RST='1') then
-      count_b <= 0;
-    elsif(incr_cnt_b='1') then
-      count_b<=count_b+1;
-    end if;
-    if(count_b=WRITE_CNT_B+READ_CNT_B) then
-      count_b<=0;
-    end if;
- end if;
-end process;
-
-DO_WRITE_B<='1' when (count_b <WRITE_CNT_B and incr_cnt_b='1') else '0';
-DO_READ_B <='1' when (count_b >WRITE_CNT_B and incr_cnt_b='1') else '0';
 
 BEGIN_SHIFT_REG: FOR I IN 0 TO 4 GENERATE
 BEGIN
   DFF_RIGHT: IF I=0 GENERATE
   BEGIN
-    SHIFT_INST_0: ENTITY work.REGISTER_LOGIC_DRAM
+    SHIFT_INST_0: ENTITY work.REGISTER_LOGIC_SRAM
       PORT MAP(
-        Q   => DO_READ_REG_A(0),
+        Q   => DO_READ_REG(0),
         CLK => CLK,
         RST => RST,
-        D   => DO_READ_A
+        D   => DO_READ
       );
   END GENERATE DFF_RIGHT;
   DFF_OTHERS: IF ((I>0) AND (I<=4)) GENERATE
   BEGIN
-     SHIFT_INST: ENTITY work.REGISTER_LOGIC_DRAM
+     SHIFT_INST: ENTITY work.REGISTER_LOGIC_SRAM
        PORT MAP(
-          Q   => DO_READ_REG_A(I),
+          Q   => DO_READ_REG(I),
           CLK => CLK,
           RST => RST,
-          D   => DO_READ_REG_A(I-1)
+          D   => DO_READ_REG(I-1)
        );
   END GENERATE DFF_OTHERS;
 END GENERATE BEGIN_SHIFT_REG;
-
-BEGIN_SHIFT_REG_B: FOR I IN 0 TO 4 GENERATE
-BEGIN
-  DFF_RIGHT: IF I=0 GENERATE
-  BEGIN
-    SHIFT_INST_0: ENTITY work.REGISTER_LOGIC_DRAM
-      PORT MAP(
-        Q   => DO_READ_REG_B(0),
-        CLK        => CLK,
-        RST => RST,
-        D   => DO_READ_B
-      );
-  END GENERATE DFF_RIGHT;
-  DFF_OTHERS: IF ((I>0) AND (I<=4)) GENERATE
-  BEGIN
-     SHIFT_INST: ENTITY work.REGISTER_LOGIC_DRAM
-       PORT MAP(
-         Q   => DO_READ_REG_B(I),
-         CLK        => CLK,
-         RST => RST,
-         D   => DO_READ_REG_B(I-1)
-       );
-  END GENERATE DFF_OTHERS;
-END GENERATE BEGIN_SHIFT_REG_B;
-
 
 
   WE <= IF_THEN_ELSE(DO_WRITE='1','1','0') ;

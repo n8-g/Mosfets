@@ -42,13 +42,11 @@
 ------------- Begin Cut here for COMPONENT Declaration ------ COMP_TAG
 COMPONENT memory
   PORT (
-    a : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    d : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-    dpra : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    d : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
     clk : IN STD_LOGIC;
     we : IN STD_LOGIC;
-    spo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
-    dpo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+    spo : OUT STD_LOGIC_VECTOR(0 DOWNTO 0)
   );
 END COMPONENT;
 -- COMP_TAG_END ------ End COMPONENT Declaration ------------
@@ -61,11 +59,9 @@ your_instance_name : memory
   PORT MAP (
     a => a,
     d => d,
-    dpra => dpra,
     clk => clk,
     we => we,
-    spo => spo,
-    dpo => dpo
+    spo => spo
   );
 -- INST_TAG_END ------ End INSTANTIATION Template ------------
 

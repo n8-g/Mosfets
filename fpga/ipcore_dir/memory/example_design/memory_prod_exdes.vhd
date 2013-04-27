@@ -75,11 +75,11 @@ use unisim.vcomponents.all;
 --------------------------------------------------------------------------------
 entity memory_exdes is
   PORT (
-      A          : IN  STD_LOGIC_VECTOR(9-1-(4*0*boolean'pos(9>4)) downto 0)
+      A          : IN  STD_LOGIC_VECTOR(8-1-(4*0*boolean'pos(8>4)) downto 0)
                  := (OTHERS => '0');
-      D          : IN  STD_LOGIC_VECTOR(32-1 downto 0)                := (OTHERS => '0');
-      DPRA       : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
-      SPRA       : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
+      D          : IN  STD_LOGIC_VECTOR(1-1 downto 0)                := (OTHERS => '0');
+      DPRA       : IN  STD_LOGIC_VECTOR(8-1 downto 0)           := (OTHERS => '0');
+      SPRA       : IN  STD_LOGIC_VECTOR(8-1 downto 0)           := (OTHERS => '0');
       CLK        : IN  STD_LOGIC                                                := '0';
       WE         : IN  STD_LOGIC                                                := '0';
       I_CE       : IN  STD_LOGIC                                                := '1';
@@ -90,10 +90,10 @@ entity memory_exdes is
       QDPO_RST   : IN  STD_LOGIC                                                := '0';
       QSPO_SRST  : IN  STD_LOGIC                                                := '0';
       QDPO_SRST  : IN  STD_LOGIC                                                := '0';
-      SPO        : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-      DPO        : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-      QSPO       : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-      QDPO       : OUT STD_LOGIC_VECTOR(32-1 downto 0)
+      SPO        : OUT STD_LOGIC_VECTOR(1-1 downto 0);
+      DPO        : OUT STD_LOGIC_VECTOR(1-1 downto 0);
+      QSPO       : OUT STD_LOGIC_VECTOR(1-1 downto 0);
+      QDPO       : OUT STD_LOGIC_VECTOR(1-1 downto 0)
       );
 
 end memory_exdes;
@@ -107,14 +107,12 @@ architecture xilinx of memory_exdes is
   component memory is
   PORT (
 
-      DPRA                    : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
       CLK                     : IN STD_LOGIC;
       WE                      : IN  STD_LOGIC;
-      SPO                     : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-      DPO                     : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-      A                       : IN  STD_LOGIC_VECTOR(9-1-(4*0*boolean'pos(9>4)) downto 0)
+      SPO                     : OUT STD_LOGIC_VECTOR(1-1 downto 0);
+      A                       : IN  STD_LOGIC_VECTOR(8-1-(4*0*boolean'pos(8>4)) downto 0)
                               := (OTHERS => '0');
-      D                       : IN  STD_LOGIC_VECTOR(32-1 downto 0)                := (OTHERS => '0')
+      D                       : IN  STD_LOGIC_VECTOR(1-1 downto 0)                := (OTHERS => '0')
 
 );
   end component;
@@ -125,11 +123,9 @@ begin
   dmg0 : memory
     port map (
 
-      DPRA                    => DPRA,
       CLK                     => CLK_i,
       WE                      => WE,
       SPO                     => SPO,
-      DPO                     => DPO,
       A                       => A,
       D                       => D
 

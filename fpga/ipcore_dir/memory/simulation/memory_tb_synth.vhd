@@ -99,14 +99,12 @@ ARCHITECTURE memory_synth_ARCH OF memory_tb_synth IS
 
 COMPONENT memory_exdes
   PORT (
-    DPRA       : IN  STD_LOGIC_VECTOR(9-1 downto 0)           := (OTHERS => '0');
     CLK        : IN  STD_LOGIC                                                := '0';
     WE         : IN  STD_LOGIC                                                := '0';
-    SPO        : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-    DPO        : OUT STD_LOGIC_VECTOR(32-1 downto 0);
-    A          : IN  STD_LOGIC_VECTOR(9-1-(4*0*boolean'pos(9>4)) downto 0)
+    SPO        : OUT STD_LOGIC_VECTOR(1-1 downto 0);
+    A          : IN  STD_LOGIC_VECTOR(8-1-(4*0*boolean'pos(8>4)) downto 0)
                  := (OTHERS => '0');
-    D          : IN  STD_LOGIC_VECTOR(32-1 downto 0)                := (OTHERS => '0')
+    D          : IN  STD_LOGIC_VECTOR(1-1 downto 0)                := (OTHERS => '0')
       );
 
 END COMPONENT;
@@ -122,21 +120,16 @@ END COMPONENT;
   SIGNAL RESET_SYNC_R2 : STD_LOGIC:='1';
   SIGNAL RESET_SYNC_R3 : STD_LOGIC:='1';
 
-  SIGNAL ADDR: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL ADDR_R: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL DPRA: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL DPRA_R: STD_LOGIC_VECTOR(8 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL ADDR: STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL ADDR_R: STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
   SIGNAL WE : STD_LOGIC:='0';
   SIGNAL WE_R : STD_LOGIC:='0';
-  SIGNAL SPO: STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL SPO_R: STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL DPO: STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL DPO_R: STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL D: STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL D_R: STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
-  SIGNAL CHECK_DATA_TDP : STD_LOGIC_VECTOR(1 DOWNTO 0) := (OTHERS => '0'); 
+  SIGNAL SPO: STD_LOGIC_VECTOR(0 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL SPO_R: STD_LOGIC_VECTOR(0 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL D: STD_LOGIC_VECTOR(0 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL D_R: STD_LOGIC_VECTOR(0 DOWNTO 0) := (OTHERS => '0');
+  SIGNAL CHECKER_EN: STD_LOGIC:='0';
   SIGNAL CHECKER_EN_R: STD_LOGIC:='0';
-  SIGNAL CHECKER_ENB_R : STD_LOGIC :=  '0'; 
   SIGNAL ITER_R0 : STD_LOGIC := '0';
   SIGNAL ITER_R1 : STD_LOGIC := '0';
   SIGNAL ITER_R2 : STD_LOGIC := '0';
@@ -178,18 +171,14 @@ STATUS(7 DOWNTO 0) <= ISSUE_FLAG_STATUS;
        RST         => RSTA,
        A           => ADDR,
        D           => D,
-       DPRA        => DPRA,
        WE          => WE,
 		 DATA_IN     => SPO_R,
-		 DATA_IN_B   => DPO_R,
-		 CHECK_DATA  => CHECK_DATA_TDP
+		 CHECK_DATA  => CHECKER_EN
              );
-
-
-   DMG_DATA_CHECKER_INST_A: ENTITY work.memory_TB_CHECKER
+   DMG_DATA_CHECKER_INST: ENTITY work.memory_TB_CHECKER
       GENERIC MAP ( 
-        WRITE_WIDTH => 32,
-		  READ_WIDTH  => 32      )
+        WRITE_WIDTH => 1,
+		  READ_WIDTH  => 1      )
       PORT MAP (
         CLK     => CLKA,
         RST     => RSTA, 
@@ -197,38 +186,19 @@ STATUS(7 DOWNTO 0) <= ISSUE_FLAG_STATUS;
         DATA_IN => SPO_R,
         STATUS  => ISSUE_FLAG(0)
 	   );
-   PROCESS(CLKA)
-   BEGIN
-      IF(RISING_EDGE(CLKA)) THEN
-        IF(RSTA='1') THEN
-		    CHECKER_EN_R <= '0';
-	     ELSE
-		    CHECKER_EN_R <= CHECK_DATA_TDP(0) AFTER 50 ns;
-         END IF;
-      END IF;
-   END PROCESS;
 
-   DMG_DATA_CHECKER_INST_B: ENTITY work.memory_TB_CHECKER
-      GENERIC MAP ( 
-        WRITE_WIDTH => 32,
-		  READ_WIDTH  => 32      )
-      PORT MAP (
-        CLK     => CLKA,
-        RST     => RSTA, 
-        EN      => CHECKER_ENB_R,
-        DATA_IN => DPO_R,
-        STATUS  => ISSUE_FLAG(1)
-	   );
    PROCESS(CLKA)
    BEGIN
      IF(RISING_EDGE(CLKA)) THEN
        IF(RSTA='1') THEN
-	      CHECKER_ENB_R <= '0';
+		    CHECKER_EN_R <= '0';
 	    ELSE
-	      CHECKER_ENB_R <= CHECK_DATA_TDP(1) AFTER 50 ns;
-       END IF;
-     END IF;
+		    CHECKER_EN_R <= CHECKER_EN AFTER 50 ns;
+        END IF;
+      END IF;
    END PROCESS;
+
+
 
       PROCESS(CLKA)
       BEGIN
@@ -262,16 +232,12 @@ STATUS(7 DOWNTO 0) <= ISSUE_FLAG_STATUS;
       BEGIN
         IF(RISING_EDGE(CLKA)) THEN
 		  IF(RESET_SYNC_R3='1') THEN
-          DPRA_R     <= (OTHERS=>'0') AFTER 50 ns;
           WE_R       <= '0' AFTER 50 ns;
           SPO_R      <= (OTHERS=>'0') AFTER 50 ns;
-          DPO_R      <= (OTHERS=>'0') AFTER 50 ns;
           D_R        <= (OTHERS=>'0') AFTER 50 ns;
            ELSE
-          DPRA_R     <= DPRA AFTER 50 ns;
           WE_R       <= WE AFTER 50 ns;
           SPO_R      <= SPO AFTER 50 ns;
-          DPO_R      <= DPO AFTER 50 ns;
           D_R        <= D AFTER 50 ns;
          END IF;
 	    END IF;
@@ -289,11 +255,9 @@ STATUS(7 DOWNTO 0) <= ISSUE_FLAG_STATUS;
       END PROCESS;
 
     DMG_PORT: memory_exdes PORT MAP (
-      DPRA                    => DPRA_R,
       CLK                     => CLKA,
       WE                      => WE_R,
       SPO                     => SPO,
-      DPO                     => DPO,
       A                       => ADDR_R,
       D                       => D_R
 
