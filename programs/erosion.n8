@@ -43,6 +43,7 @@ AND(,EAST)
 AND(RAM[255],WEST) # If all of them were white, turn white
 
 SET(FLAG)
+CPY(NEWS,RAM[255])
 
 SAVE(,0x0)
 SAVE(,0x1)
