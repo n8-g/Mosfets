@@ -85,7 +85,6 @@ architecture Behavioral of processor is
 	signal img_y : std_logic_vector(lsize-1 downto 0);
 	signal vga_row : image_row;
 	
-	signal pe_instr : std_logic_vector(21 downto 0);
 	signal north : std_logic_vector(size-1 downto 0);
 	signal south : std_logic_vector(size-1 downto 0);
 	signal east : std_logic_vector(size-1 downto 0);
@@ -126,20 +125,22 @@ architecture Behavioral of processor is
 	signal img_out : std_logic_vector(size-1 downto 0);
 
 	signal pc : std_logic_vector(pclen-1 downto 0);
-	signal instr : std_logic_vector(31 downto 0);
 	signal next_instr : std_logic_vector(31 downto 0);
-	signal instr_valid : std_logic;
+	signal instr : std_logic_vector(31 downto 0);
+	signal pe_instr : std_logic_vector(21 downto 0);
+	signal pe_ce : std_logic;
 	signal ctrl : std_logic_vector(1 downto 0);
 	
 	signal next_pc : std_logic_vector(pclen-1 downto 0);
-	
+	signal halted : std_logic;
+	signal started : std_logic;
 begin
 	-- Instantiate the Unit Under Test (UUT)
    pe_arr: entity work.pe_array generic map (size=>size)
 		port map (
 			clk => clk,
 			rst => rst,
-			ce => ce,
+			ce => pe_ce,
 			north => north,
 			east => east,
 			west => west,
@@ -212,10 +213,11 @@ begin
 	led <= (
 		0 => instr_loaded,
 		1 => data_loaded,
-		2 => ce,
+		2 => started,
+		3 => halted,
 		others => '0');
 	seg <= (others=>'1');
-	an <= (others=>'1');
+	an <= "1111";
 	rst <= not btn(3);
 	data_rst <= rst and not btn(4);
 	instr_rst <= rst and not btn(2);
@@ -308,11 +310,11 @@ begin
 			flash_offset(ld_data_addr'RANGE) <= ld_data_addr;
 		else
 			ready <= '1';
+			data_in <= img_out;
+			data_inaddr <= img_outaddr;
+			data_we <= img_we;
 			if (ce = '1') then
-				data_in <= img_out;
-				data_inaddr <= img_outaddr;
 				data_outaddr <= img_inaddr;
-				data_we <= img_we;
 			else
 				data_outaddr <= vga_addr;
 			end if;
@@ -353,9 +355,11 @@ begin
 	end process;
 	
 	-- Control unit
+	
 	next_pc <= pc + '1';
 	pe_instr <= instr(21 downto 0);
 	ctrl <= instr(31 downto 30);
+	pe_ce <= '1' when ctrl /= HALT else '0';
 	
 	north <= (others => '1');
 	south <= img_in when ctrl = LOAD else (others => '1');
@@ -364,25 +368,29 @@ begin
 	img_in <= data_out;
 	img_outaddr <= instr(29 downto 22);
 	img_inaddr <= next_instr(29 downto 22); -- Since we're using block ram, start the fetch for the NEXT instruction
-	img_we <= '1' when ce = '1' and ctrl = SAVE else '0';
+	img_we <= '1' when pe_ce = '1' and ctrl = SAVE else '0';
+	ce <= started and not halted;
 	process(rst,clk)
 	begin
 		if (rst = '0') then
 			pc <= (others=>'0');
 			instr <= (others=>'0');
-			instr_valid <= '0';
-			ce <= '0';
+			halted <= '0';
+			started <= '0';
 		elsif (clk'event and clk = '1') then
-			instr <= next_instr;
-			instr_valid <= '1';
-			if (ce = '1') then
-				if (ctrl = HALT) then
-					ce <= '0';
+			if (ce = '1') then -- Processor running
+				if (next_instr(31 downto 30) = HALT) then
+					halted <= '1';
 				end if;
 				pc <= next_pc;
-			elsif (ready = '1' and btn(0) = '1') then
-				ce <= '1';
+				instr <= next_instr;
+			end if;
+			if (btn(1) = '1') then -- Reset processor
 				pc <= (others=>'0');
+				started <= '0';
+				halted <= '0';
+			elsif (btn(0) = '1') then -- Start processor
+				started <= '1';
 			end if;
 		end if;
 	end process;
