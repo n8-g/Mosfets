@@ -59,7 +59,7 @@ end processor;
 architecture Behavioral of processor is
 	constant lsize : integer := 4;
 	constant size : integer := 2**lsize;
-	constant pclen : integer := 9;
+	constant pclen : integer := 12;
 	
 	constant pixel_scale : integer := 480 / size;
 	
@@ -332,7 +332,7 @@ begin
 			if (load_instr = '1' and flash_ready = '1') then
 				if (ld_instr_addr(0) = '0') then
 					ld_instr_loword <= flash_data;
-				elsif (ld_instr_addr = "111111111" or ld_instr_data(31 downto 30) = HALT) then
+				elsif (ld_instr_addr = "1111111111111" or ld_instr_data(31 downto 30) = HALT) then
 					instr_loaded <= '1';
 				end if;
 				ld_instr_addr <= ld_instr_addr + '1';
@@ -369,7 +369,7 @@ begin
 	img_outaddr <= instr(29 downto 22);
 	img_inaddr <= next_instr(29 downto 22); -- Since we're using block ram, start the fetch for the NEXT instruction
 	img_we <= '1' when pe_ce = '1' and ctrl = SAVE else '0';
-	ce <= started and not halted;
+	ce <= ready and started and not halted;
 	process(rst,clk)
 	begin
 		if (rst = '0') then
