@@ -69,7 +69,7 @@ CPY.INV(,RAM[0x0])
 SUM(RAM[0x0],Y)
 CPY.INV(,RAM[0x1])
 SUM(RAM[0x1],Z)
-CPY.INV(,RAM[0x1])
+CPY.INV(,RAM[0x2])
 SUM(RAM[0x2],Z)
 CLR() 
 SUM(,Z) # Discard carry
