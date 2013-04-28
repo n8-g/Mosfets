@@ -60,12 +60,12 @@ SUM(RAM[0x2],RAM[0x2])
 RDCAR.INV(FLAG) # Positive sums generate a carry.
 
 # Absolute value - Negate if we're negative
-CPY.INV(,Y)
-SUM(RAM[0x0],RAM[0x0])
-CPY.INV(,Z)
-SUM(RAM[0x1],RAM[0x1])
-CPY.INV(,Z)
-SUM(RAM[0x2],RAM[0x2])
+CPY.INV(,RAM[0x0])
+SUM(RAM[0x0],Y)
+CPY.INV(,RAM[0x1])
+SUM(RAM[0x1],Z)
+CPY.INV(,RAM[0x1])
+SUM(RAM[0x2],Z)
 RDCAR() # Discard carry
 
 SET(FLAG) 
@@ -112,12 +112,12 @@ SUM(RAM[0x12],RAM[0x12])
 RDCAR.INV(FLAG) # Positive sums generate a carry.
 
 # Absolute value - Negate if we're negative
-CPY.INV(,Y)
-SUM(RAM[0x10],RAM[0x10])
-CPY.INV(,Z)
-SUM(RAM[0x11],RAM[0x11])
-CPY.INV(,Z)
-SUM(RAM[0x12],RAM[0x12])
+CPY.INV(,RAM[0x10])
+SUM(RAM[0x10],Y)
+CPY.INV(,RAM[0x11])
+SUM(RAM[0x11],Z)
+CPY.INV(,RAM[0x12])
+SUM(RAM[0x12],Z)
 RDCAR() # Discard carry
 
 SET(FLAG) 
