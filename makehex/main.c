@@ -44,7 +44,18 @@ int main (int argc, char* argv[])
 		{
 			int i;
 			for (i = 0; i < readcnt; ++i)
-				fprintf(out,"%02X%c",(unsigned char)buffer[i],i % 0x10 == 0xF ? '\n' : ' ');
+			{
+				if (width == 1)
+				{
+					int j;
+					unsigned char v = (unsigned char)buffer[i];
+					for (j = 7; j >= 0; --j)
+						fputc(v&(1<<j) ? '1' : '0',out);
+					fputc(i&1 ? '\n' : ' ',out);
+				}
+				else
+					fprintf(out,"%02X%c",(unsigned char)buffer[i],i % 0x10 == 0xF ? '\n' : ' ');
+			}
 		}
 	}
 	else
