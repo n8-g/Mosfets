@@ -1,4 +1,4 @@
-all: edge.bin sobel.bin erosion.bin
+all: edge.bin sobel.bin erosion.bin sobel1.bin
 %.bin: %.n8 n8c
 	../compiler/n8c -o $@ $<
 n8c:
