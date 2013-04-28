@@ -132,6 +132,7 @@ int parse_instr(FILE* out)
 	unsigned int instr = 0;
 	int ctrl = NORMAL;
 	int val;
+	int ramaddr = -1;
 	char lex[32];
 	if (next_token(NULL,lex) == NONE)
 		return 0;
@@ -158,18 +159,14 @@ int parse_instr(FILE* out)
 	else if (!strcmp(lex,"IXOR"))
 		instr |= (OP_XOR << ALU_OFF) | (1 << INVACC_OFF);
 	else if (!strcmp(lex,"SUM"))
-		instr |= (OP_SUM << ALU_OFF) | (1 << CLRCAR_OFF);
-	else if (!strcmp(lex,"ISUM"))
-		instr |= (OP_SUM << ALU_OFF) | (1 << INVACC_OFF) | (1 << CLRCAR_OFF);
-	else if (!strcmp(lex,"SUMC"))
 		instr |= (OP_SUM << ALU_OFF);
-	else if (!strcmp(lex,"ISUMCI"))
+	else if (!strcmp(lex,"ISUM"))
 		instr |= (OP_SUM << ALU_OFF) | (1 << INVACC_OFF);
 	else if (!strcmp(lex,"SET"))
 		instr |= (OP_SET << ALU_OFF);
 	else if (!strcmp(lex,"CLR"))
 		instr |= (OP_CLR << ALU_OFF);
-	else if (!strcmp(lex,"CAR"))
+	else if (!strcmp(lex,"RDCAR"))
 		instr |= (OP_CAR << ALU_OFF) | (1 << CLRCAR_OFF);
 	else
 		return error("Unknown operation: '%s'",lex);
@@ -190,10 +187,10 @@ int parse_instr(FILE* out)
 		if (!strcmp(lex,"RAM"))
 		{
 			if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
-			if (next_token(&val,lex) != INT)
+			if (next_token(&ramaddr,lex) != INT)
 				return error("Expected: integer");
 			instr |= 1 << RAM_OFF;
-			instr |= ((val & 0xFF) << ADDR_OFF);
+			instr |= ((ramaddr & 0xFF) << ADDR_OFF);
 			if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
 		}
 		else if (!strcmp(lex,"FLAG")) // Flag assignment
@@ -235,6 +232,8 @@ int parse_instr(FILE* out)
 				if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
 				if (next_token(&val,lex) != INT)
 					return error("Expected: integer");
+				if (ramaddr != -1 && ramaddr != val)
+					return error("Cannot access different RAM addresses in one instruction");
 				instr |= (IN_RAM << INSEL_OFF);
 				instr |= ((val & 0xFF) << ADDR_OFF);
 				if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
