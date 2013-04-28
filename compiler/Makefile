@@ -1,2 +1,2 @@
-n8c : main.cpp
+mc : main.cpp
 	g++ -g -o $@ main.cpp
