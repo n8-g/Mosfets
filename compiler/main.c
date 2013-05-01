@@ -152,6 +152,8 @@ int parse_instr(FILE* out)
 		ctrl = LOAD;
 	else if (!strcmp(lex,"SAVE"))
 		ctrl = SAVE;
+	else if (!strcmp(lex,"BDR"))
+		ctrl = BDR;
 	else if (!strcmp(lex,"CPY"))
 		instr |= OP_CPY << ALU_OFF; // No change really, but for consistency sake
 	else if (!strcmp(lex,"AND"))
@@ -201,7 +203,7 @@ int parse_instr(FILE* out)
 			return error("Expected: integer");
 		instr |= ((ramaddr & 0xFF) << LOAD_RAMADDR_OFF);
 		next_token(NULL,lex);
-		if (!expect(",",lex)) return -1;
+		if (expect(",",lex)) return -1;
 		if (next_token(&imgaddr,lex) != INT)
 			return error("Expected: integer");
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
