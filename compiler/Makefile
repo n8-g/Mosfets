@@ -1,2 +1,2 @@
-mc : main.cpp
+mosc : main.cpp
 	g++ -g -o $@ main.cpp

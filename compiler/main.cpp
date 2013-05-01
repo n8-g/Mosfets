@@ -15,10 +15,19 @@ enum token_t
 
 enum ctrl_t
 {
-	NORMAL = 1,
-	LOAD = 2,
-	SAVE = 3,
-	HALT = 0
+	NORMAL = 0x0,
+	LOAD = 0x1,
+	SAVE = 0x2,
+	BDR = 0x3,
+	HALT = 0xF
+};
+
+enum border_t
+{
+	BDRN = 0x0,
+	BDRE = 0x1,
+	BDRS = 0x2,
+	BDRW = 0x3
 };
 
 enum insel_t
@@ -57,8 +66,11 @@ enum word_offset_t
 	FLAG_OFF = 19,
 	RAM_OFF = 20,
 	NEWS_OFF = 21,
-	IMGADDR_OFF = 22,
-	CTRL_OFF = 30
+	LOAD_RAMADDR_OFF = 0,
+	LOAD_IMGADDR_OFF = 8,
+	SAVE_IMGADDR_OFF = 8,
+	BDR_OFF = 0,
+	CTRL_OFF = 28
 };
 
 static int lineno;
@@ -132,14 +144,14 @@ int parse_instr(FILE* out)
 	unsigned int instr = 0;
 	int ctrl = NORMAL;
 	int val;
-	int ramaddr = -1;
+	int ramaddr = -1, imgaddr;
 	char lex[32];
 	if (next_token(NULL,lex) == NONE)
 		return 0;
 	if (!strcmp(lex,"LOAD"))
-		ctrl = LOAD, instr |= (OP_CPY << ALU_OFF) | (1 << NEWS_OFF) | (IN_SOUTH << INSEL_OFF);
+		ctrl = LOAD;
 	else if (!strcmp(lex,"SAVE"))
-		ctrl = SAVE, instr |= (OP_CPY << ALU_OFF) | (1 << NEWS_OFF) | (IN_SOUTH << INSEL_OFF);
+		ctrl = SAVE;
 	else if (!strcmp(lex,"CPY"))
 		instr |= OP_CPY << ALU_OFF; // No change really, but for consistency sake
 	else if (!strcmp(lex,"AND"))
@@ -171,7 +183,7 @@ int parse_instr(FILE* out)
 	else
 		return error("Unknown operation: '%s'",lex);
 	next_token(NULL,lex);
-	if (!strcmp(lex,"."))
+	if (ctrl == NORMAL && !strcmp(lex,"."))
 	{
 		next_token(NULL,lex);
 		if (!strcmp(lex,"INV"))
@@ -182,37 +194,68 @@ int parse_instr(FILE* out)
 	}
 	if (expect("(",lex))
 		return -1;
-	while (next_token(NULL,lex) == WORD)
+	switch(ctrl)
 	{
-		if (!strcmp(lex,"RAM"))
+	case LOAD:
+		if (next_token(&ramaddr,lex) != INT)
+			return error("Expected: integer");
+		instr |= ((ramaddr & 0xFF) << LOAD_RAMADDR_OFF);
+		next_token(NULL,lex);
+		if (!expect(",",lex)) return -1;
+		if (next_token(&imgaddr,lex) != INT)
+			return error("Expected: integer");
+		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
+		next_token(NULL,lex);
+		break;
+	case SAVE:
+		if (next_token(&imgaddr,lex) != INT)
+			return error("Expected: integer");
+		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
+		next_token(NULL,lex);
+		break;
+	case BDR:
+		if (next_token(NULL,lex) != WORD)
+			return error("Expected: direction");
+		if (!strcmp(lex,"NORTH"))
+			instr |= (BDRN << BDR_OFF);
+		else if (!strcmp(lex,"SOUTH"))
+			instr |= (BDRS << BDR_OFF);
+		else if (!strcmp(lex,"EAST"))
+			instr |= (BDRE << BDR_OFF);
+		else if (!strcmp(lex,"WEST"))
+			instr |= (BDRW << BDR_OFF);
+		else
+			return error("Invalid direction");
+		next_token(NULL,lex);
+		break;
+	case NORMAL:
+		while (next_token(NULL,lex) == WORD)
 		{
-			if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
-			if (next_token(&ramaddr,lex) != INT)
-				return error("Expected: integer");
-			instr |= 1 << RAM_OFF;
-			instr |= ((ramaddr & 0xFF) << ADDR_OFF);
-			if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
+			if (!strcmp(lex,"RAM"))
+			{
+				if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
+				if (next_token(&ramaddr,lex) != INT)
+					return error("Expected: integer");
+				instr |= 1 << RAM_OFF;
+				instr |= ((ramaddr & 0xFF) << ADDR_OFF);
+				if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
+			}
+			else if (!strcmp(lex,"FLAG")) // Flag assignment
+				instr |= 1 << FLAG_OFF;
+			else if (!strcmp(lex,"NEWS")) // NEWS assignment
+				instr |= 1 << NEWS_OFF;
+			else if (!strcmp(lex,"X")) // Etc...
+				instr |= 1 << GPREG_OFF;
+			else if (!strcmp(lex,"Y"))
+				instr |= 2 << GPREG_OFF;
+			else if (!strcmp(lex,"Z"))
+				instr |= 3 << GPREG_OFF;
+			else
+				return error("Unknown destination: '%s'",lex);
 		}
-		else if (!strcmp(lex,"FLAG")) // Flag assignment
-			instr |= 1 << FLAG_OFF;
-		else if (!strcmp(lex,"NEWS")) // NEWS assignment
-			instr |= 1 << NEWS_OFF;
-		else if (!strcmp(lex,"X")) // Etc...
-			instr |= 1 << GPREG_OFF;
-		else if (!strcmp(lex,"Y"))
-			instr |= 2 << GPREG_OFF;
-		else if (!strcmp(lex,"Z"))
-			instr |= 3 << GPREG_OFF;
-		else
-			return error("Unknown destination: '%s'",lex);
-	}
-	if (*lex == ',')
-	{
-		next_token(&val,lex);
-		if (ctrl == LOAD || ctrl == SAVE)
-			instr |= ((val & 0xFF) << IMGADDR_OFF);
-		else
+		if (*lex == ',')
 		{
+			next_token(&val,lex);
 			if (!strcmp(lex,"NORTH"))
 				instr |= (IN_NORTH << INSEL_OFF);
 			else if (!strcmp(lex,"EAST"))
@@ -240,8 +283,8 @@ int parse_instr(FILE* out)
 			}
 			else
 				return error("Unknown operand: '%s'",lex);
+			next_token(NULL,lex);
 		}
-		next_token(NULL,lex);
 	}
 	if (expect(")",lex))
 		return -1;
