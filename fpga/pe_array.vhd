@@ -52,7 +52,10 @@ entity pe_array is
 		set_flag : in std_logic;
 		set_news : in std_logic;
 		
-		outdata : out std_logic_vector(size-1 downto 0)
+		pe_north : out std_logic_vector(size-1 downto 0);
+		pe_east : out std_logic_vector(size-1 downto 0);
+		pe_west : out std_logic_vector(size-1 downto 0);
+		pe_south : out std_logic_vector(size-1 downto 0)
 	);
 end pe_array;
 
@@ -86,13 +89,16 @@ begin
 		news(i)(size+1) <= east(i-1);
 		news(0)(i) <= north(i-1);
 		news(size+1)(i) <= south(i-1);
+		pe_west(i-1) <= news(i)(1);
+		pe_east(i-1) <=  news(i)(size);
 	end generate;
 	-- Corners
 	news(0)(0) <= '0';
 	news(0)(size+1) <= '0';
 	news(size+1)(0) <= '0';
 	news(size+1)(size+1) <= '0';
-	outdata <= news(1)(size downto 1); -- Output top row
+	pe_north <= news(1)(size downto 1);
+	pe_south <= news(size)(size downto 1);
 			
 end Behavioral;
 

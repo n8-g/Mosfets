@@ -54,11 +54,21 @@ package instr_word is
 	constant SETFLAG_OFF : integer := 19;
 	constant SETRAM_OFF : integer := 20;
 	constant SETNEWS_OFF : integer := 21;
-	constant IMGADDR_OFF : integer := 22;
-	constant CTRL_OFF : integer := 30;
 	
-	constant LOAD : std_logic_vector(1 downto 0) := "10";
-	constant RUN : std_logic_vector(1 downto 0) := "01";
-	constant SAVE : std_logic_vector(1 downto 0) := "11";
-	constant HALT : std_logic_vector(1 downto 0) := "00";
+	constant LOAD_RAMADDR_OFF : integer := 0;
+	constant LOAD_IMGADDR_OFF : integer := 8;
+	constant SAVE_IMGADDR_OFF : integer := 8;
+	constant CTRL_OFF : integer := 28;
+	constant BDR_OFF : integer := 0;
+	
+	constant NORMAL : std_logic_vector(3 downto 0) := "0000";
+	constant LOAD : std_logic_vector(3 downto 0) := "0001";
+	constant SAVE : std_logic_vector(3 downto 0) := "0010";
+	constant BDR : std_logic_vector(3 downto 0) := "0011";
+	constant HALT : std_logic_vector(3 downto 0) := "1111";
+	
+	constant BDRN : std_logic_vector(1 downto 0) := "00";
+	constant BDRE : std_logic_vector(1 downto 0) := "01";
+	constant BDRS : std_logic_vector(1 downto 0) := "10";
+	constant BDRW : std_logic_vector(1 downto 0) := "11";
 end instr_word;

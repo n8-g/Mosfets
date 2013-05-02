@@ -57,13 +57,16 @@ entity processor is
 end processor;
 
 architecture Behavioral of processor is
-	constant lsize : integer := 4;
-	constant size : integer := 2**lsize;
+	constant lsize : integer := 5;
+	constant size : integer := 16;
 	constant pclen : integer := 12;
+	constant vga_width : integer := 32;
+	constant vga_height : integer := 32;
+	constant vga_depth : integer := 3;
+	constant stride : integer := vga_width / size;
+	constant pixel_scale : integer := 480 / vga_width;
 	
-	constant pixel_scale : integer := 480 / size;
-	
-	type image_row is array(size-1 downto 0) of std_logic_vector(2 downto 0);
+	type vga_row_t is array(vga_width-1 downto 0) of std_logic_vector(2 downto 0);
 	
 	signal rst : std_logic;
 	signal data_rst : std_logic;
@@ -79,16 +82,38 @@ architecture Behavioral of processor is
 	signal vga_sy : std_logic;
 	signal vga_pix : std_logic_vector(2 downto 0);
 	signal vga_addr : std_logic_vector(7 downto 0);
-	signal vga_data : std_logic_vector(size-1 downto 0);
 	signal vga_val : std_logic_vector(2 downto 0);
 	signal img_x : std_logic_vector(lsize downto 0);
 	signal img_y : std_logic_vector(lsize-1 downto 0);
-	signal vga_row : image_row;
+	
+	signal vram_src_addr : std_logic_vector(7 downto 0);	
+	signal vram_src_data : std_logic_vector(size-1 downto 0);
+	signal vram_addr : std_logic_vector(7 downto 0);
+	signal vram_row : std_logic_vector(vga_width*vga_depth-size-1 downto 0);
+	signal vram_data : std_logic_vector(vga_width*vga_depth-1 downto 0);
+	signal vram_we : std_logic;
+	signal vram_piece : std_logic_vector(0 downto 0);
+	signal vram_depth : std_logic_vector(1 downto 0);
+	signal vram_ready : std_logic;
+	
+	signal vga_data : std_logic_vector(vga_width*vga_depth-1 downto 0);
+	signal vga_row : vga_row_t;
 	
 	signal north : std_logic_vector(size-1 downto 0);
 	signal south : std_logic_vector(size-1 downto 0);
 	signal east : std_logic_vector(size-1 downto 0);
 	signal west : std_logic_vector(size-1 downto 0);
+	
+	signal bordern : std_logic_vector(size-1 downto 0);
+	signal bordere : std_logic_vector(size-1 downto 0);
+	signal borderw : std_logic_vector(size-1 downto 0);
+	signal borders : std_logic_vector(size-1 downto 0);
+	signal load_image : std_logic;
+	
+	signal pe_north : std_logic_vector(size-1 downto 0);
+	signal pe_south : std_logic_vector(size-1 downto 0);
+	signal pe_east : std_logic_vector(size-1 downto 0);
+	signal pe_west : std_logic_vector(size-1 downto 0);
 
 	signal flash_page : std_logic_vector(7 downto 0);
 	signal flash_offset : std_logic_vector(14 downto 0);
@@ -122,18 +147,32 @@ architecture Behavioral of processor is
 	signal img_outaddr : std_logic_vector(7 downto 0);
 	signal img_inaddr : std_logic_vector(7 downto 0);
 	signal img_in : std_logic_vector(size-1 downto 0);
-	signal img_out : std_logic_vector(size-1 downto 0);
+	signal img_nextaddr : std_logic_vector(7 downto 0);
 
-	signal pc : std_logic_vector(pclen-1 downto 0);
+	signal pe_ce : std_logic;
+	signal pe_clrcar : std_logic;
+	signal pe_aluop : std_logic_vector(2 downto 0);
+	signal pe_invacc : std_logic;
+	signal pe_invout : std_logic;
+	signal pe_gpregsel : std_logic_vector(1 downto 0);
+	signal pe_insel : std_logic_vector(2 downto 0);
+	signal pe_ram_addr : std_logic_vector(7 downto 0);
+	signal pe_set_ram : std_logic;
+	signal pe_set_flag : std_logic;
+	signal pe_set_news : std_logic;
+	
+	signal instr_valid : std_logic;
+	signal last_instr_valid : std_logic;
+	signal fetch_pc : std_logic_vector(pclen-1 downto 0);
+	signal fetch_instr : std_logic_vector(31 downto 0);
 	signal next_instr : std_logic_vector(31 downto 0);
 	signal instr : std_logic_vector(31 downto 0);
-	signal pe_instr : std_logic_vector(21 downto 0);
-	signal pe_ce : std_logic;
-	signal ctrl : std_logic_vector(1 downto 0);
-	
-	signal next_pc : std_logic_vector(pclen-1 downto 0);
+	signal ctrl : std_logic_vector(3 downto 0);
+	signal instr_counter : std_logic_vector(7 downto 0);
+	signal instr_cycles : integer;
 	signal halted : std_logic;
 	signal started : std_logic;
+	signal stall : std_logic;
 begin
 	-- Instantiate the Unit Under Test (UUT)
    pe_arr: entity work.pe_array generic map (size=>size)
@@ -145,17 +184,20 @@ begin
 			east => east,
 			west => west,
 			south => south,
-			clrcar=>pe_instr(CLRCAR_OFF),
-			aluop=>pe_instr(ALU_OFF+2 downto ALU_OFF),
-			invacc=>pe_instr(INVACC_OFF),
-			invout=>pe_instr(INVOUT_OFF),
-			gpregsel=>pe_instr(GPREG_OFF+1 downto GPREG_OFF),
-			insel=>pe_instr(INSEL_OFF+2 downto INSEL_OFF),
-			ram_addr=>pe_instr(RAMADDR_OFF+7 downto RAMADDR_OFF),
-			set_ram=>pe_instr(SETRAM_OFF),
-			set_flag=>pe_instr(SETFLAG_OFF),
-			set_news=>pe_instr(SETNEWS_OFF),
-			outdata => img_out
+			clrcar=>pe_clrcar,
+			aluop=>pe_aluop,
+			invacc=>pe_invacc,
+			invout=>pe_invout,
+			gpregsel=>pe_gpregsel,
+			insel=>pe_insel,
+			ram_addr=>pe_ram_addr,
+			set_ram=>pe_set_ram,
+			set_flag=>pe_set_flag,
+			set_news=>pe_set_news,
+			pe_north => pe_north,
+			pe_south => pe_south,
+			pe_east => pe_east,
+			pe_west => pe_west
 	  );
 	instr_cache : entity work.block_memory
 		generic map(depth => pclen, width => 32)
@@ -163,25 +205,53 @@ begin
 			clk => clk,
 			a_addr => ld_instr_addr(pclen downto 1),
 			a_din => ld_instr_data,
+			a_en => '1',
 			a_we => ld_instr_we,
 			a_dout => open,
-			b_addr => pc,
-			b_dout => next_instr,
+			b_addr => fetch_pc,
+			b_dout => fetch_instr,
+			b_en => '1',
 			b_we => '0',
 			b_din => (others=>'0')
 		);
+	instr_fetch : entity work.instr_fetch
+		generic map (size => 32)
+		port map (
+			clk => clk,
+			rst => rst,
+			stall => stall,
+			fetch_instr => fetch_instr,
+			next_instr => next_instr
+		);
 	data_cache : entity work.block_memory
-		generic map (depth => 8,width => 16)
+		generic map (depth => 8,width => size)
 		port map (
 			clk => clk,
 			a_addr => data_inaddr,
 			a_din => data_in,
+			a_en => '1',
 			a_we => data_we,
 			a_dout => open,
 			b_addr => data_outaddr,
 			b_din => (others=>'0'),
+			b_en => '1',
 			b_we => '0',
 			b_dout => data_out
+		);
+	video_ram : entity work.block_memory
+		generic map (depth => 8, width => vga_width*vga_depth)
+		port map (
+			clk => clk,
+			a_en => '1',
+			a_addr => vga_addr,
+			a_din => (others=>'0'),
+			a_dout => vga_data,
+			a_we => '0',
+			b_en => '1',
+			b_addr => vram_addr,
+			b_din => vram_data,
+			b_dout => open,
+			b_we => vram_we
 		);
 	flash_mem : entity work.async_ram generic map (cycle => 12)
 		port map (
@@ -224,15 +294,61 @@ begin
 	flashrp <= rst;
 	flash_addr <= "000"&flash_page&flash_offset;
 	
+	-- Video ram loader
+	vram_src_data <= data_out;
+	vram_src_addr <= vram_depth&vram_addr(4 downto 0)&vram_piece; -- Source address to fetch
+	vram_data <= vram_row&vram_src_data; -- Current row value
+	vgaLoader : process(rst,clk)
+	begin
+		if (rst = '0') then
+			vram_addr <= (others=>'0');
+			vram_row <= (others=>'0');
+			vram_piece <= "0";
+			vram_depth <= "00";
+			vram_ready <= '0'; -- Whether vga_src_row is valid
+			vram_we <= '0';
+		elsif (rising_edge(clk)) then
+			if (vram_we = '1') then
+				vram_we <= '0';
+				if (vram_addr = vga_height-1) then -- Last row
+					vram_addr <= (others=>'0');
+				else
+					vram_addr <= vram_addr + '1';
+				end if;
+			elsif (vram_ready = '1') then
+				vram_row <= vram_data(vga_width*vga_depth-size-1 downto 0); -- Update row
+				if (vram_piece = stride-1) then -- Last piece
+					vram_piece <= "0";
+					if (vram_depth = vga_depth-1) then -- Last depth
+						vram_depth <= "00";
+						vram_we <= '1';
+					else
+						vram_depth <= vram_depth + '1';
+					end if;
+				else
+					vram_piece <= vram_piece + '1';
+				end if;
+				vram_ready <= '0';
+			else
+				vram_ready <= '1';
+			end if;
+		end if;
+	end process;
+	
 	-- VGA stuff
-	vga_addr(7 downto lsize+2) <= (others=>'0'); -- 0
-	vga_addr(lsize+1 downto lsize) <= pcnt; -- Depth
+	vga_addr(7 downto lsize) <= (others=>'0'); -- 0
 	vga_addr(lsize-1 downto 0) <= img_y(lsize-1 downto 0); -- Row
-	vga_data <= data_out when ce = '0' else (others=>'0');
-	vga_pix <= vga_row(conv_integer(unsigned(img_x(lsize-1 downto 0)))) when img_x(lsize) = '0' else (others=>'1');
+	-- Make vga_data a little more pixel friendly
+	vga_row_gen : for i in 0 to vga_width-1 generate
+		vga_depth_gen : for j in 0 to vga_depth-1 generate
+			vga_row(i)(j) <= vga_data(i + j*vga_width);
+		end generate;
+	end generate;
+	vga_pix <= vga_row(conv_integer(img_x(lsize-1 downto 0))) when img_x(lsize) = '0' else (others=>'1');
 	vga_val <= (others=>'0') when vga_disp = '0' else
 					vga_pix when sw(7)='1' else 
 					(others=>vga_pix(2));
+	
 	vgaRed <= vga_val;
 	vgaGreen <= vga_val;
 	vgaBlue <= vga_val(2 downto 1);
@@ -256,7 +372,6 @@ begin
 				if (vga_sx = '1') then
 					img_x <= (others=>'0'); -- Reset x
 					xcnt <= (others=>'0');
-					
 					ycnt <= ycnt + '1';
 					if (ycnt = pixel_scale-1) then
 						ycnt <= (others=>'0');
@@ -268,20 +383,11 @@ begin
 					end if;
 				end if;
 			end if;
-			-- Fill the proper bit for each pixel in our row with the data from the image RAM
-			for i in 0 to size-1 loop -- Iterate over each pixel
-				case pcnt is -- Note that the value of vga_data was fetched on the previous clock cycle
-					when "01" => vga_row(i)(2) <= vga_data(i);
-					when "10" => vga_row(i)(1) <= vga_data(i);
-					when "11" => vga_row(i)(0) <= vga_data(i);
-					when others =>
-				end case;
-			end loop;
 		end if;
 	end process;
 	
 	-- Priority encoder
-	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,img_out,img_inaddr,img_outaddr,img_we,sw,ce,vga_addr)
+	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,pe_north,img_outaddr,img_we,sw,ce)
 	begin
 		load_instr <= '0';
 		load_data <= '0';
@@ -292,7 +398,6 @@ begin
 		ld_instr_we <= '0';
 		data_in <= (others=>'0');
 		data_inaddr <= (others=>'0');
-		data_outaddr <= (others=>'0');
 		data_we <= '0';
 		if (instr_loaded = '0') then
 			load_instr <= '1';
@@ -310,16 +415,12 @@ begin
 			flash_offset(ld_data_addr'RANGE) <= ld_data_addr;
 		else
 			ready <= '1';
-			data_in <= img_out;
+			data_in <= pe_north;
 			data_inaddr <= img_outaddr;
 			data_we <= img_we;
-			if (ce = '1') then
-				data_outaddr <= img_inaddr;
-			else
-				data_outaddr <= vga_addr;
-			end if;
 		end if;
 	end process;
+	data_outaddr <= img_inaddr when next_instr(31 downto CTRL_OFF) = LOAD else vram_src_addr;
 	
 	-- Loaders
 	ld_instr_data <= flash_data & ld_instr_loword;
@@ -332,7 +433,7 @@ begin
 			if (load_instr = '1' and flash_ready = '1') then
 				if (ld_instr_addr(0) = '0') then
 					ld_instr_loword <= flash_data;
-				elsif (ld_instr_addr = "1111111111111" or ld_instr_data(31 downto 30) = HALT) then
+				elsif (ld_instr_addr = "1111111111111" or ld_instr_data(31 downto 28) = HALT) then
 					instr_loaded <= '1';
 				end if;
 				ld_instr_addr <= ld_instr_addr + '1';
@@ -355,38 +456,117 @@ begin
 	end process;
 	
 	-- Control unit
+	process(instr,ctrl)
+	begin
+		pe_ce <= '0';
+		pe_clrcar <= '0';
+		pe_aluop <= OP_CPY;
+		pe_invacc <= '0';
+		pe_invout <= '0';
+		pe_gpregsel <= (others=>'0');
+		pe_insel <= IN_S;
+		pe_ram_addr <= (others=>'0');
+		pe_set_ram <= '0';
+		pe_set_flag <= '0';
+		pe_set_news <= '0';
+		img_we <= '0';
+		load_image <= '0';
+		instr_cycles <= 0;
+		case ctrl is
+			when HALT => 
+			when NORMAL =>
+				pe_ce <= '1';
+				pe_clrcar <= instr(CLRCAR_OFF);
+				pe_aluop <= instr(ALU_OFF+2 downto ALU_OFF);
+				pe_invacc <= instr(INVACC_OFF);
+				pe_invout <= instr(INVOUT_OFF);
+				pe_gpregsel <= instr(GPREG_OFF+1 downto GPREG_OFF);
+				pe_insel <= instr(INSEL_OFF+2 downto INSEL_OFF);
+				pe_ram_addr <= instr(RAMADDR_OFF+7 downto RAMADDR_OFF);
+				pe_set_ram <= instr(SETRAM_OFF);
+				pe_set_flag <= instr(SETFLAG_OFF);
+				pe_set_news <= instr(SETNEWS_OFF);
+			when LOAD =>
+				pe_ce <= '1';
+				pe_ram_addr <= instr(LOAD_RAMADDR_OFF+7 downto LOAD_RAMADDR_OFF);
+				pe_set_ram <= '1';
+				pe_set_news <= '1';
+				load_image <= '1';
+				instr_cycles <= size-1;
+			when SAVE =>
+				pe_ce <= '1';
+				pe_set_news <= '1';
+				img_we <= '1';
+				instr_cycles <= size-1;
+			when OTHERS =>
+		end case;
+	end process;
 	
-	next_pc <= pc + '1';
-	pe_instr <= instr(21 downto 0);
-	ctrl <= instr(31 downto 30);
-	pe_ce <= '1' when ctrl /= HALT else '0';
-	
-	north <= (others => '1');
-	south <= img_in when ctrl = LOAD else (others => '1');
-	east <= (others => '1');
-	west <= (others=>'1');
+	ctrl <= instr(31 downto CTRL_OFF);
 	img_in <= data_out;
-	img_outaddr <= instr(29 downto 22);
-	img_inaddr <= next_instr(29 downto 22); -- Since we're using block ram, start the fetch for the NEXT instruction
-	img_we <= '1' when pe_ce = '1' and ctrl = SAVE else '0';
 	ce <= ready and started and not halted;
+	north <= bordern;
+	east <= bordere;
+	west <= borderw;
+	south <= img_in when load_image = '1' else borders;
+	
+	stall <= '1' when instr_counter /= instr_cycles and last_instr_valid = '1' else '0';
+	img_inaddr <= next_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF) when stall = '0' else
+						img_nextaddr;
 	process(rst,clk)
 	begin
 		if (rst = '0') then
-			pc <= (others=>'0');
-			instr <= (others=>'0');
-			halted <= '0';
+			last_instr_valid <= '0';
+			instr_valid <= '0';
+			fetch_pc <= (others=>'0');
 			started <= '0';
+			halted <= '0';
+			img_outaddr <= (others => '0');
+			bordern <= (others => '1');
+			borders <= (others => '1');
+			bordere <= (others => '1');
+			borderw <= (others => '1');
+			instr_counter <= (others=>'0');
+			instr <= (others=>'0');
+			img_nextaddr <= (others=>'0');
 		elsif (clk'event and clk = '1') then
 			if (ce = '1') then -- Processor running
-				if (next_instr(31 downto 30) = HALT) then
-					halted <= '1';
+				if (instr_valid = '1') then
+					case ctrl is
+						when LOAD => img_nextaddr <= img_nextaddr + stride;
+						when SAVE => img_outaddr <= img_outaddr + stride;
+						when BDR =>
+							case instr(BDR_OFF+1 downto BDR_OFF) is
+								when BDRN => bordern <= pe_south;
+								when BDRE => bordere <= pe_west;
+								when BDRS => borders <= pe_north;
+								when BDRW => borderw <= pe_east;
+								when others =>
+							end case;
+						when OTHERS =>
+					end case;
 				end if;
-				pc <= next_pc;
-				instr <= next_instr;
+				if (stall = '0') then
+					instr <= next_instr;
+					last_instr_valid <= instr_valid;
+					instr_valid <= '1';
+					instr_counter <= (others =>'0'); -- Reset counter
+					fetch_pc <= fetch_pc + '1';
+					case next_instr(31 downto CTRL_OFF) is
+						when LOAD => img_nextaddr <= next_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF)+stride;
+						when SAVE => img_outaddr <= next_instr(SAVE_IMGADDR_OFF+7 downto SAVE_IMGADDR_OFF);
+						when HALT => halted <= '1';
+						when OTHERS =>
+					end case;
+				else
+					instr_counter <= instr_counter + '1';
+				end if;
 			end if;
 			if (btn(1) = '1') then -- Reset processor
-				pc <= (others=>'0');
+				fetch_pc <= (others=>'0');
+				instr <= (others=>'0');
+				instr_valid <= '0';
+				last_instr_valid <= '0';
 				started <= '0';
 				halted <= '0';
 			elsif (btn(0) = '1') then -- Start processor
