@@ -1,7 +1,8 @@
+# Load entire image
 LOAD(255,0x00) # NW
-LOAD(254,0x10) # NE
+LOAD(254,0x01) # NE
 LOAD(253,0x20) # SW
-LOAD(252,0x30) # SE
+LOAD(252,0x21) # SE
 
 # NW
 SET(NEWS)

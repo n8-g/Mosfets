@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 
 char lookup[128] =
 {
@@ -20,6 +21,7 @@ int main (int argc, char* argv[])
 	int width = 4;
 	int reverse = 0;
 	char buffer[512];
+	int rowlen = 0;
 	++argv, --argc;
 	while (*argv && **argv == '-')
 	{
@@ -27,9 +29,12 @@ int main (int argc, char* argv[])
 		{
 		case 'r': reverse = 1; break;
 		case 'b': width = 1; break;
+		case 'l': rowlen = strtoul(*argv+2,NULL,0); break;
 		}
 		++argv, --argc;
 	}
+	if (rowlen == 0)
+		rowlen = width*4;
 	if (argc < 2)
 	{
 		printf ("usage: %s [-rb] inhex outbin\n",argv[0]);
@@ -51,10 +56,10 @@ int main (int argc, char* argv[])
 					unsigned char v = (unsigned char)buffer[i];
 					for (j = 7; j >= 0; --j)
 						fputc(v&(1<<j) ? '1' : '0',out);
-					fputc(i&1 ? '\n' : ' ',out);
+					fputc(i % rowlen == (rowlen-1) ? '\n' : ' ',out);
 				}
 				else
-					fprintf(out,"%02X%c",(unsigned char)buffer[i],i % 0x10 == 0xF ? '\n' : ' ');
+					fprintf(out,"%02X%c",(unsigned char)buffer[i],i % rowlen == (rowlen-1) ? '\n' : ' ');
 			}
 		}
 	}

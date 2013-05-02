@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <png.h>
 
-#define WIDTH 16
-#define HEIGHT 16
+#define WIDTH 32
+#define HEIGHT 32
 #define DEPTH 3
 
-unsigned short image[HEIGHT*DEPTH];
+unsigned int image[HEIGHT*DEPTH];
 
-int load_png_rgba(unsigned short* image, FILE* file)
+int load_png_rgba(unsigned int* image, FILE* file)
 {
 	u_int8_t* rows[HEIGHT];
 	u_int8_t data[HEIGHT][WIDTH*4];
@@ -75,7 +75,7 @@ int load_png_rgba(unsigned short* image, FILE* file)
 
 int main(int argc, char* argv[])
 {
-	int i;
+	int i,j;
 	FILE* in, *out;
 	if (argc < 3)
 	{
@@ -97,10 +97,8 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	for (i = 0; i < HEIGHT*DEPTH; ++i)
-	{
-		fputc(image[i]&0xFF,out);
-		fputc((image[i]>>8)&0xFF,out);
-	}
+		for (j = 0; j < WIDTH; j += 8)
+			fputc((image[i]>>j)&0xFF,out);
 	fclose(out);
 	return 0;
 }
