@@ -1,29 +1,37 @@
-LOAD(255,0x0)
-LOAD(255,0x1)
-LOAD(255,0x2)
-LOAD(255,0x3)
-LOAD(255,0x4)
-LOAD(255,0x5)
-LOAD(255,0x6)
-LOAD(255,0x7)
-LOAD(255,0x8)
-LOAD(255,0x9)
-LOAD(255,0xA)
-LOAD(255,0xB)
-LOAD(255,0xC)
-LOAD(255,0xD)
-LOAD(255,0xE)
-LOAD(255,0xF)
+.ADDR IMG_NW 0x00
+.ADDR IMG_NE 0x01
+.ADDR IMG_SW 0x20
+.ADDR IMG_SE 0x21
+
+.ADDR NW 255
+.ADDR NE 254
+.ADDR SW 253
+.ADDR SE 252
+
+# Load entire image
+LOAD(NW,IMG_NW) # NW
+LOAD(NE,IMG_NE) # NE
+LOAD(SW,IMG_SW) # SW
+LOAD(SE,IMG_SE) # SE
+
+# NW
+SET(NEWS)
+BDR(WEST)
+BDR(NORTH)
+CPY(NEWS,RAM[NE])
+BDR(EAST)
+CPY(NEWS,RAM[SW])
+BDR(SOUTH)
 
 # Read diagonal neighbors
 CPY(NEWS,NORTH)
 CPY(RAM[0],WEST)
 CPY(RAM[1],EAST)
-CPY(NEWS,RAM[255])
+CPY(NEWS,RAM[NW])
 CPY(NEWS,SOUTH)
 CPY(RAM[2],WEST)
 CPY(RAM[3],EAST)
-CPY(X NEWS FLAG,RAM[255]) # White pixels only
+CPY(X NEWS FLAG,RAM[NW]) # White pixels only
 CPY(,RAM[0])
 OR(,RAM[1])
 OR(,RAM[2])
@@ -31,7 +39,7 @@ OR(,RAM[3])
 OR(,NORTH)
 OR(,SOUTH)
 OR(,EAST)
-OR(RAM[255],WEST) # If any of them were white, stay white
+OR(RAM[0],WEST) # If any of them were white, stay white
 CPY.INV(FLAG,X) # Black pixels only
 CPY(,RAM[0])
 AND(,RAM[1])
@@ -40,24 +48,130 @@ AND(,RAM[3])
 AND(,NORTH)
 AND(,SOUTH)
 AND(,EAST)
-AND(RAM[255],WEST) # If all of them were white, turn white
+AND(RAM[0],WEST) # If all of them were white, turn white
 
 SET(FLAG)
-CPY(NEWS,RAM[255])
+CPY(NEWS,RAM[0])
 
-SAVE(0x0)
-SAVE(0x1)
-SAVE(0x2)
-SAVE(0x3)
-SAVE(0x4)
-SAVE(0x5)
-SAVE(0x6)
-SAVE(0x7)
-SAVE(0x8)
-SAVE(0x9)
-SAVE(0xA)
-SAVE(0xB)
-SAVE(0xC)
-SAVE(0xD)
-SAVE(0xE)
-SAVE(0xF)
+SAVE(IMG_NW)
+
+# NE
+SET(NEWS)
+BDR(EAST)
+CPY(NEWS,RAM[NW])
+BDR(WEST)
+CPY(NEWS,RAM[SE])
+BDR(SOUTH)
+
+# Read diagonal neighbors
+CPY(NEWS,NORTH)
+CPY(RAM[0],WEST)
+CPY(RAM[1],EAST)
+CPY(NEWS,RAM[NW])
+CPY(NEWS,SOUTH)
+CPY(RAM[2],WEST)
+CPY(RAM[3],EAST)
+CPY(X NEWS FLAG,RAM[NW]) # White pixels only
+CPY(,RAM[0])
+OR(,RAM[1])
+OR(,RAM[2])
+OR(,RAM[3])
+OR(,NORTH)
+OR(,SOUTH)
+OR(,EAST)
+OR(RAM[0],WEST) # If any of them were white, stay white
+CPY.INV(FLAG,X) # Black pixels only
+CPY(,RAM[0])
+AND(,RAM[1])
+AND(,RAM[2])
+AND(,RAM[3])
+AND(,NORTH)
+AND(,SOUTH)
+AND(,EAST)
+AND(RAM[0],WEST) # If all of them were white, turn white
+
+SET(FLAG)
+CPY(NEWS,RAM[0])
+
+SAVE(IMG_NE)
+
+# SW
+SET(NEWS)
+BDR(SOUTH)
+BDR(WEST)
+CPY(NEWS,RAM[NW])
+BDR(NORTH)
+CPY(NEWS,RAM[SE])
+BDR(EAST)
+
+# Read diagonal neighbors
+CPY(NEWS,NORTH)
+CPY(RAM[0],WEST)
+CPY(RAM[1],EAST)
+CPY(NEWS,RAM[NW])
+CPY(NEWS,SOUTH)
+CPY(RAM[2],WEST)
+CPY(RAM[3],EAST)
+CPY(X NEWS FLAG,RAM[NW]) # White pixels only
+CPY(,RAM[0])
+OR(,RAM[1])
+OR(,RAM[2])
+OR(,RAM[3])
+OR(,NORTH)
+OR(,SOUTH)
+OR(,EAST)
+OR(RAM[0],WEST) # If any of them were white, stay white
+CPY.INV(FLAG,X) # Black pixels only
+CPY(,RAM[0])
+AND(,RAM[1])
+AND(,RAM[2])
+AND(,RAM[3])
+AND(,NORTH)
+AND(,SOUTH)
+AND(,EAST)
+AND(RAM[0],WEST) # If all of them were white, turn white
+
+SET(FLAG)
+CPY(NEWS,RAM[0])
+
+SAVE(IMG_SW)
+
+# SE
+SET(NEWS)
+BDR(EAST)
+CPY(NEWS,RAM[NE])
+BDR(NORTH)
+CPY(NEWS,RAM[SW])
+BDR(WEST)
+
+# Read diagonal neighbors
+CPY(NEWS,NORTH)
+CPY(RAM[0],WEST)
+CPY(RAM[1],EAST)
+CPY(NEWS,RAM[NW])
+CPY(NEWS,SOUTH)
+CPY(RAM[2],WEST)
+CPY(RAM[3],EAST)
+CPY(X NEWS FLAG,RAM[NW]) # White pixels only
+CPY(,RAM[0])
+OR(,RAM[1])
+OR(,RAM[2])
+OR(,RAM[3])
+OR(,NORTH)
+OR(,SOUTH)
+OR(,EAST)
+OR(RAM[0],WEST) # If any of them were white, stay white
+CPY.INV(FLAG,X) # Black pixels only
+CPY(,RAM[0])
+AND(,RAM[1])
+AND(,RAM[2])
+AND(,RAM[3])
+AND(,NORTH)
+AND(,SOUTH)
+AND(,EAST)
+AND(RAM[0],WEST) # If all of them were white, turn white
+
+SET(FLAG)
+CPY(NEWS,RAM[0])
+
+SAVE(IMG_SE)

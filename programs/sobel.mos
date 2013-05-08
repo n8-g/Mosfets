@@ -1,313 +1,1085 @@
-LOAD(255,0x0)
-LOAD(255,0x1)
-LOAD(255,0x2)
-LOAD(255,0x3)
-LOAD(255,0x4)
-LOAD(255,0x5)
-LOAD(255,0x6)
-LOAD(255,0x7)
-LOAD(255,0x8)
-LOAD(255,0x9)
-LOAD(255,0xA)
-LOAD(255,0xB)
-LOAD(255,0xC)
-LOAD(255,0xD)
-LOAD(255,0xE)
-LOAD(255,0xF)
-LOAD(254,0x10)
-LOAD(254,0x11)
-LOAD(254,0x12)
-LOAD(254,0x13)
-LOAD(254,0x14)
-LOAD(254,0x15)
-LOAD(254,0x16)
-LOAD(254,0x17)
-LOAD(254,0x18)
-LOAD(254,0x19)
-LOAD(254,0x1A)
-LOAD(254,0x1B)
-LOAD(254,0x1C)
-LOAD(254,0x1D)
-LOAD(254,0x1E)
-LOAD(254,0x1F)
-LOAD(253,0x20)
-LOAD(253,0x21)
-LOAD(253,0x22)
-LOAD(253,0x23)
-LOAD(253,0x24)
-LOAD(253,0x25)
-LOAD(253,0x26)
-LOAD(253,0x27)
-LOAD(253,0x28)
-LOAD(253,0x29)
-LOAD(253,0x2A)
-LOAD(253,0x2B)
-LOAD(253,0x2C)
-LOAD(253,0x2D)
-LOAD(253,0x2E)
-LOAD(253,0x2F)
+.ADDR NW0 0xFF
+.ADDR NW1 0xFE
+.ADDR NW2 0xFD
+.ADDR NE0 0xFC
+.ADDR NE1 0xFB
+.ADDR NE2 0xFA
+.ADDR SW0 0xF9
+.ADDR SW1 0xF8
+.ADDR SW2 0xF7
+.ADDR SE0 0xF6
+.ADDR SE1 0xF5
+.ADDR SE2 0xF4
+
+.ADDR IMG_NW0 0x00
+.ADDR IMG_NE0 0x01
+.ADDR IMG_SW0 0x20
+.ADDR IMG_SE0 0x21
+.ADDR IMG_NW1 0x40
+.ADDR IMG_NE1 0x41
+.ADDR IMG_SW1 0x60
+.ADDR IMG_SE1 0x61
+.ADDR IMG_NW2 0x80
+.ADDR IMG_NE2 0x81
+.ADDR IMG_SW2 0xA0
+.ADDR IMG_SE2 0xA1
+
+.ADDR G1T0 0x00
+.ADDR G1T1 0x01
+.ADDR G1T2 0x02
+.ADDR G1T3 0x03
+.ADDR G1T4 0x04
+
+.ADDR G1B0 0x05
+.ADDR G1B1 0x06
+.ADDR G1B2 0x07
+.ADDR G1B3 0x08
+.ADDR G1B4 0x09
+
+.ADDR G2L0 0x10
+.ADDR G2L1 0x11
+.ADDR G2L2 0x12
+.ADDR G2L3 0x13
+.ADDR G2L4 0x14
+
+.ADDR G2R0 0x15
+.ADDR G2R1 0x16
+.ADDR G2R2 0x17
+.ADDR G2R3 0x18
+.ADDR G2R4 0x19
+
+# Store all 8 neighbors
+.ADDR MY_N0 0x20
+.ADDR MY_N1 0x21
+.ADDR MY_N2 0x22
+.ADDR MY_NE0 0x23
+.ADDR MY_NE1 0x24
+.ADDR MY_NE2 0x25
+.ADDR MY_E0 0x26
+.ADDR MY_E1 0x27
+.ADDR MY_E2 0x28
+.ADDR MY_SE0 0x29
+.ADDR MY_SE1 0x2A
+.ADDR MY_SE2 0x2B
+.ADDR MY_S0 0x2C
+.ADDR MY_S1 0x2D
+.ADDR MY_S2 0x2E
+.ADDR MY_SW0 0x2F
+.ADDR MY_SW1 0x30
+.ADDR MY_SW2 0x31
+.ADDR MY_W0 0x32
+.ADDR MY_W1 0x33
+.ADDR MY_W2 0x34
+.ADDR MY_NW0 0x35
+.ADDR MY_NW1 0x36
+.ADDR MY_NW2 0x37
 
 # For two's complement, we need to add 001
 SET(Y)
 CLR(Z)
 
+# Load entire image
+LOAD(NW0,IMG_NW0)
+LOAD(NE0,IMG_NE0)
+LOAD(SW0,IMG_SW0)
+LOAD(SE0,IMG_SE0)
+LOAD(NW1,IMG_NW1)
+LOAD(NE1,IMG_NE1)
+LOAD(SW1,IMG_SW1)
+LOAD(SE1,IMG_SE1)
+LOAD(NW2,IMG_NW2)
+LOAD(NE2,IMG_NE2)
+LOAD(SW2,IMG_SW2)
+LOAD(SE2,IMG_SE2)
+
+########################## NW ##########################
+# Read ALL neigbors into ram. This will make calculations easier later
+
+# ----------------- PLANE 0 -----------------
+SET(NEWS)
+BDR(NORTH)
+BDR(WEST)
+CPY(NEWS,RAM[NE0])
+BDR(EAST)
+CPY(NEWS,RAM[SW0])
+BDR(SOUTH)
+CPY(NEWS,RAM[NW0])
+CPY(RAM[MY_E0],EAST)
+CPY(RAM[MY_W0],WEST)
+CPY(NEWS RAM[MY_N0],NORTH) # Shift south
+CPY(RAM[MY_NE0],EAST)
+CPY(RAM[MY_NW0],WEST)
+CPY(NEWS,RAM[NW0]) # Restore
+CPY(NEWS RAM[MY_S0],SOUTH) # Shift north
+CPY(RAM[MY_SE0],EAST)
+CPY(RAM[MY_SW0],WEST)
+# ----------------- PLANE 1 -----------------
+CPY(NEWS,RAM[NE1])
+BDR(EAST)
+CPY(NEWS,RAM[SW1])
+BDR(SOUTH)
+CPY(NEWS,RAM[NW1])
+CPY(RAM[MY_E1],EAST)
+CPY(RAM[MY_W1],WEST)
+CPY(NEWS RAM[MY_N1],NORTH) # Shift south
+CPY(RAM[MY_NE1],EAST)
+CPY(RAM[MY_NW1],WEST)
+CPY(NEWS,RAM[NW1]) # Restore
+CPY(NEWS RAM[MY_S1],SOUTH) # Shift north
+CPY(RAM[MY_SE1],EAST)
+CPY(RAM[MY_SW1],WEST)
+# ----------------- PLANE 2 -----------------
+CPY(NEWS,RAM[NE2])
+BDR(EAST)
+CPY(NEWS,RAM[SW2])
+BDR(SOUTH)
+CPY(NEWS,RAM[NW2])
+CPY(RAM[MY_E2],EAST)
+CPY(RAM[MY_W2],WEST)
+CPY(NEWS RAM[MY_N2],NORTH) # Shift south
+CPY(RAM[MY_NE2],EAST)
+CPY(RAM[MY_NW2],WEST)
+CPY(NEWS,RAM[NW2]) # Restore
+CPY(NEWS RAM[MY_S2],SOUTH) # Shift north
+CPY(RAM[MY_SE2],EAST)
+CPY(RAM[MY_SW2],WEST)
+
 # ======================== G1 ===========================
-# Top corners
-CPY(NEWS,RAM[253])
-CPY(NEWS,NORTH) # Shift down
-CPY(,EAST) 
-SUM(RAM[0x0],WEST) # Add east and west together
-CPY(NEWS,RAM[254])
-CPY(NEWS,NORTH)
-CPY(,EAST)
-SUM(RAM[0x1],WEST)
-CPY(NEWS,RAM[255])
-CPY(NEWS,NORTH)
-CPY(,EAST)
-SUM(RAM[0x2],WEST)
-RDCAR(RAM[0x3])
-
-# Add Top (shifted up 1)
-CPY(NEWS,RAM[253])
-CPY(,NORTH)
-SUM(RAM[0x1],RAM[0x1])
-CPY(NEWS,RAM[254])
-CPY(,NORTH)
-SUM(RAM[0x2],RAM[0x2])
-CPY(NEWS,RAM[255])
-CPY(,NORTH)
-SUM(RAM[0x3],RAM[0x3])
+# G1T = NE + NW
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_NW0]) # Add east and west together
+CPY(RAM[G1T0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_NW1]) # Add east and west together
+CPY(RAM[G1T1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_NW2]) # Add east and west together
+CPY(RAM[G1T2],X)
 CLR()
-SUM(RAM[0x4],Z)
+SUM(RAM[G1T3],Z)
 
-# Bottom corners
-CPY(NEWS,RAM[253])
-CPY(NEWS,SOUTH) # Shift down
-CPY(,EAST) 
-SUM(RAM[0x5],WEST) # Add east and west together
-CPY(NEWS,RAM[254])
-CPY(NEWS,SOUTH)
-CPY(,EAST)
-SUM(RAM[0x6],WEST)
-CPY(NEWS,RAM[255])
-CPY(NEWS,SOUTH)
-CPY(,EAST)
-SUM(RAM[0x7],WEST)
+# G1T = G1T + N*2
+CPY(,RAM[MY_N0])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[MY_N1])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[MY_N2])
+SUM(RAM[G1T3],RAM[G1T3])
 CLR()
-SUM(RAM[0x8],Z)
+SUM(RAM[G1T4],Z)
 
-# Add Bottom (shifted up 1)
-CPY(NEWS,RAM[253])
-CPY(,SOUTH)
-SUM(RAM[0x6],RAM[0x6])
-CPY(NEWS,RAM[254])
-CPY(,SOUTH)
-SUM(RAM[0x7],RAM[0x7])
-CPY(NEWS,RAM[255])
-CPY(,SOUTH)
-SUM(RAM[0x8],RAM[0x8])
+# G1B = SE + SW
+CPY(,RAM[MY_SE0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G1B0],X)
+CPY(,RAM[MY_SE1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G1B1],X)
+CPY(,RAM[MY_SE2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G1B2],X)
 CLR()
-SUM(RAM[0x9],Z)
+SUM(RAM[G1B3],Z)
 
-# Calculate top - bottom
+# G1B = G1B + S*2
+CPY(,RAM[MY_S0])
+SUM(RAM[G1B1],RAM[G1B1])
+CPY(,RAM[MY_S1])
+SUM(RAM[G1B2],RAM[G1B2])
+CPY(,RAM[MY_S2])
+SUM(RAM[G1B3],RAM[G1B3])
+CLR()
+SUM(RAM[G1B4],Z)
+
+# G1T = G1T - G1B
 SET() # Set accumulator
 SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
-CPY.INV(,RAM[0x5])
-SUM(RAM[0x0],RAM[0x0])
-CPY.INV(,RAM[0x6])
-SUM(RAM[0x1],RAM[0x1])
-CPY.INV(,RAM[0x7])
-SUM(RAM[0x2],RAM[0x2])
-CPY.INV(,RAM[0x8])
-SUM(RAM[0x3],RAM[0x3])
-CPY.INV(,RAM[0x9])
-SUM(RAM[0x4],RAM[0x4])
+CPY.INV(,RAM[G1B0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY.INV(,RAM[G1B1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY.INV(,RAM[G1B2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY.INV(,RAM[G1B3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY.INV(,RAM[G1B4])
+SUM(RAM[G1T4],RAM[G1T4])
 
-# IF (Negative)
-RDCAR.INV(FLAG) # Positive sums generate a carry.
+# IF (G1T < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
 
-# Absolute value - Negate if we're negative
-CPY.INV(,RAM[0x0])
-SUM(RAM[0x0],Y)
-CPY.INV(,RAM[0x1])
-SUM(RAM[0x1],Z)
-CPY.INV(,RAM[0x2])
-SUM(RAM[0x2],Z)
-CPY.INV(,RAM[0x3])
-SUM(RAM[0x3],Z)
-CPY.INV(,RAM[0x4])
-SUM(RAM[0x4],Z)
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
 CLR()
 SUM(,Z) # Discard carry
 
-SET(FLAG) 
-# END IF (Negative)
-
-# ======================== G2 ===========================
-# West corners
-CPY(NEWS,RAM[253])
-CPY(NEWS,WEST) 
-CPY(,NORTH) 
-SUM(RAM[0x10],SOUTH) 
-CPY(NEWS,RAM[254])
-CPY(NEWS,WEST)
-CPY(,NORTH)
-SUM(RAM[0x11],SOUTH)
-CPY(NEWS,RAM[255])
-CPY(NEWS,WEST)
-CPY(,NORTH)
-SUM(RAM[0x12],SOUTH)
-CLR()
-SUM(RAM[0x13],Z)
-
-# Add West (shifted up 1)
-CPY(NEWS,RAM[253])
-CPY(,WEST)
-SUM(RAM[0x11],RAM[0x11])
-CPY(NEWS,RAM[254])
-CPY(,WEST)
-SUM(RAM[0x12],RAM[0x12])
-CPY(NEWS,RAM[255])
-CPY(,WEST)
-SUM(RAM[0x13],RAM[0x13])
-CLR()
-SUM(RAM[0x14],Z)
-
-# East corners
-CPY(NEWS,RAM[253])
-CPY(NEWS,EAST)
-CPY(,NORTH) 
-SUM(RAM[0x15],SOUTH)
-CPY(NEWS,RAM[254])
-CPY(NEWS,EAST)
-CPY(,NORTH)
-SUM(RAM[0x16],SOUTH)
-CPY(NEWS,RAM[255])
-CPY(NEWS,EAST)
-CPY(,NORTH)
-SUM(RAM[0x17],SOUTH)
-CLR()
-SUM(RAM[0x18],Z)
-
-# Add Bottom (shifted up 1)
-CPY(NEWS,RAM[253])
-CPY(,EAST)
-SUM(RAM[0x16],RAM[0x16])
-CPY(NEWS,RAM[254])
-CPY(,EAST)
-SUM(RAM[0x17],RAM[0x17])
-CPY(NEWS,RAM[255])
-CPY(,EAST)
-SUM(RAM[0x18],RAM[0x18])
-CLR()
-SUM(RAM[0x19],Z)
-
-# Calculate east - west
-SET() # Set accumulator
-SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
-CPY.INV(,RAM[0x15])
-SUM(RAM[0x10],RAM[0x10])
-CPY.INV(,RAM[0x16])
-SUM(RAM[0x11],RAM[0x11])
-CPY.INV(,RAM[0x17])
-SUM(RAM[0x12],RAM[0x12])
-CPY.INV(,RAM[0x18])
-SUM(RAM[0x13],RAM[0x13])
-CPY.INV(,RAM[0x19])
-SUM(RAM[0x14],RAM[0x14])
-
-# IF (Negative)
-RDCAR.INV(FLAG) # Positive sums generate a carry.
-
-# Absolute value - Negate if we're negative
-CPY.INV(,RAM[0x10])
-SUM(RAM[0x10],Y)
-CPY.INV(,RAM[0x11])
-SUM(RAM[0x11],Z)
-CPY.INV(,RAM[0x12])
-SUM(RAM[0x12],Z)
-CPY.INV(,RAM[0x13])
-SUM(RAM[0x13],Z)
-CPY.INV(,RAM[0x14])
-SUM(RAM[0x14],Z)
-CLR()
-SUM(,Z) # Discard carry
-
-SET(FLAG) 
-# END IF (Negative)
-
-# Sum the two results together (apparently an approximation)
-CPY(,RAM[0x10])
-SUM(RAM[0x0],RAM[0x0])
-CPY(,RAM[0x11])
-SUM(RAM[0x1],RAM[0x1])
-CPY(,RAM[0x12])
-SUM(RAM[0x2],RAM[0x2])
-CPY(,RAM[0x13])
-SUM(RAM[0x3],RAM[0x3])
-CPY(,RAM[0x14])
-SUM(RAM[0x4],RAM[0x4])
-CLR()
-SUM(,Z) # If we oversaturated, make it white
-OR(,RAM[0x4])
-OR(FLAG,RAM[0x3])
-SET(RAM[0x0])
-SET(RAM[0x1])
-SET(RAM[0x2])
+# END IF
 SET(FLAG)
 
-CPY(NEWS,RAM[0x2])
-SAVE(0x0)
-SAVE(0x1)
-SAVE(0x2)
-SAVE(0x3)
-SAVE(0x4)
-SAVE(0x5)
-SAVE(0x6)
-SAVE(0x7)
-SAVE(0x8)
-SAVE(0x9)
-SAVE(0xA)
-SAVE(0xB)
-SAVE(0xC)
-SAVE(0xD)
-SAVE(0xE)
-SAVE(0xF)
+# ======================== G2 ===========================
+# G2L = NW + SW
+CPY(,RAM[MY_NW0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G2L0],X)
+CPY(,RAM[MY_NW1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G2L1],X)
+CPY(,RAM[MY_NW2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G2L2],X)
+CLR()
+SUM(RAM[G2L3],Z)
 
-CPY(NEWS,RAM[0x1])
-SAVE(0x10)
-SAVE(0x11)
-SAVE(0x12)
-SAVE(0x13)
-SAVE(0x14)
-SAVE(0x15)
-SAVE(0x16)
-SAVE(0x17)
-SAVE(0x18)
-SAVE(0x19)
-SAVE(0x1A)
-SAVE(0x1B)
-SAVE(0x1C)
-SAVE(0x1D)
-SAVE(0x1E)
-SAVE(0x1F)
+# G2L = G2L + W*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2L3],RAM[G2L3])
+CLR()
+SUM(RAM[G2L4],Z)
 
-CPY(NEWS,RAM[0x0])
-SAVE(0x20)
-SAVE(0x21)
-SAVE(0x22)
-SAVE(0x23)
-SAVE(0x24)
-SAVE(0x25)
-SAVE(0x26)
-SAVE(0x27)
-SAVE(0x28)
-SAVE(0x29)
-SAVE(0x2A)
-SAVE(0x2B)
-SAVE(0x2C)
-SAVE(0x2D)
-SAVE(0x2E)
-SAVE(0x2F)
+# G2R = NE + SE
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_SE0]) # Add east and west together
+CPY(RAM[G2R0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_SE1]) # Add east and west together
+CPY(RAM[G2R1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_SE2]) # Add east and west together
+CPY(RAM[G2R2],X)
+CLR()
+SUM(RAM[G2R3],Z)
 
-# Discard remaining bits
+# G2R = G2R + E*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2R1],RAM[G2R1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2R2],RAM[G2R2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2R3],RAM[G2R3])
+CLR()
+SUM(RAM[G2R4],Z)
+
+# G2L = G2L - G2R
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G2R0])
+SUM(RAM[G2L0],RAM[G2L0])
+CPY.INV(,RAM[G2R1])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY.INV(,RAM[G2R2])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY.INV(,RAM[G2R3])
+SUM(RAM[G2L3],RAM[G2L3])
+CPY.INV(,RAM[G2R4])
+SUM(RAM[G2L4],RAM[G2L4])
+
+# IF (G2L < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
+CPY(,RAM[G2L0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY(,RAM[G2L1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[G2L2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[G2L3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY(,RAM[G2L4])
+SUM(RAM[G1T4],RAM[G1T4])
+CLR()
+SUM(,Z)
+
+# IF (G1T >= 16)
+CPY(FLAG,RAM[G1T4])
+# G1T = G1T | 15
+SET(RAM[G1T0])
+SET(RAM[G1T1])
+SET(RAM[G1T2])
+SET(RAM[G1T3])
+# END IF
+SET(FLAG)
+
+# Save G1T/2 out
+CPY(NEWS,RAM[G1T3])
+SAVE(IMG_NW2)
+CPY(NEWS,RAM[G1T2])
+SAVE(IMG_NW1)
+CPY(NEWS,RAM[G1T1])
+SAVE(IMG_NW0)
+
+########################## NE ##########################
+# Read ALL neigbors into ram. This will make calculations easier later
+
+# ----------------- PLANE 0 -----------------
+SET(NEWS)
+BDR(NORTH)
+BDR(EAST)
+CPY(NEWS,RAM[NW0])
+BDR(WEST)
+CPY(NEWS,RAM[SE0])
+BDR(SOUTH)
+CPY(NEWS,RAM[NE0])
+CPY(RAM[MY_E0],EAST)
+CPY(RAM[MY_W0],WEST)
+CPY(NEWS RAM[MY_N0],NORTH) # Shift south
+CPY(RAM[MY_NE0],EAST)
+CPY(RAM[MY_NW0],WEST)
+CPY(NEWS,RAM[NE0]) # Restore
+CPY(NEWS RAM[MY_S0],SOUTH) # Shift north
+CPY(RAM[MY_SE0],EAST)
+CPY(RAM[MY_SW0],WEST)
+# ----------------- PLANE 1 -----------------
+CPY(NEWS,RAM[NW1])
+BDR(WEST)
+CPY(NEWS,RAM[SE1])
+BDR(SOUTH)
+CPY(NEWS,RAM[NE1])
+CPY(RAM[MY_E1],EAST)
+CPY(RAM[MY_W1],WEST)
+CPY(NEWS RAM[MY_N1],NORTH) # Shift south
+CPY(RAM[MY_NE1],EAST)
+CPY(RAM[MY_NW1],WEST)
+CPY(NEWS,RAM[NE1]) # Restore
+CPY(NEWS RAM[MY_S1],SOUTH) # Shift north
+CPY(RAM[MY_SE1],EAST)
+CPY(RAM[MY_SW1],WEST)
+# ----------------- PLANE 2 -----------------
+CPY(NEWS,RAM[NW2])
+BDR(WEST)
+CPY(NEWS,RAM[SE2])
+BDR(SOUTH)
+CPY(NEWS,RAM[NE2])
+CPY(RAM[MY_E2],EAST)
+CPY(RAM[MY_W2],WEST)
+CPY(NEWS RAM[MY_N2],NORTH) # Shift south
+CPY(RAM[MY_NE2],EAST)
+CPY(RAM[MY_NW2],WEST)
+CPY(NEWS,RAM[NE2]) # Restore
+CPY(NEWS RAM[MY_S2],SOUTH) # Shift north
+CPY(RAM[MY_SE2],EAST)
+CPY(RAM[MY_SW2],WEST)
+
+# ======================== G1 ===========================
+# G1T = NE + NW
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_NW0]) # Add east and west together
+CPY(RAM[G1T0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_NW1]) # Add east and west together
+CPY(RAM[G1T1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_NW2]) # Add east and west together
+CPY(RAM[G1T2],X)
+CLR()
+SUM(RAM[G1T3],Z)
+
+# G1T = G1T + N*2
+CPY(,RAM[MY_N0])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[MY_N1])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[MY_N2])
+SUM(RAM[G1T3],RAM[G1T3])
+CLR()
+SUM(RAM[G1T4],Z)
+
+# G1B = SE + SW
+CPY(,RAM[MY_SE0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G1B0],X)
+CPY(,RAM[MY_SE1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G1B1],X)
+CPY(,RAM[MY_SE2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G1B2],X)
+CLR()
+SUM(RAM[G1B3],Z)
+
+# G1B = G1B + S*2
+CPY(,RAM[MY_S0])
+SUM(RAM[G1B1],RAM[G1B1])
+CPY(,RAM[MY_S1])
+SUM(RAM[G1B2],RAM[G1B2])
+CPY(,RAM[MY_S2])
+SUM(RAM[G1B3],RAM[G1B3])
+CLR()
+SUM(RAM[G1B4],Z)
+
+# G1T = G1T - G1B
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G1B0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY.INV(,RAM[G1B1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY.INV(,RAM[G1B2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY.INV(,RAM[G1B3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY.INV(,RAM[G1B4])
+SUM(RAM[G1T4],RAM[G1T4])
+
+# IF (G1T < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# ======================== G2 ===========================
+# G2L = NW + SW
+CPY(,RAM[MY_NW0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G2L0],X)
+CPY(,RAM[MY_NW1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G2L1],X)
+CPY(,RAM[MY_NW2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G2L2],X)
+CLR()
+SUM(RAM[G2L3],Z)
+
+# G2L = G2L + W*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2L3],RAM[G2L3])
+CLR()
+SUM(RAM[G2L4],Z)
+
+# G2R = NE + SE
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_SE0]) # Add east and west together
+CPY(RAM[G2R0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_SE1]) # Add east and west together
+CPY(RAM[G2R1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_SE2]) # Add east and west together
+CPY(RAM[G2R2],X)
+CLR()
+SUM(RAM[G2R3],Z)
+
+# G2R = G2R + E*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2R1],RAM[G2R1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2R2],RAM[G2R2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2R3],RAM[G2R3])
+CLR()
+SUM(RAM[G2R4],Z)
+
+# G2L = G2L - G2R
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G2R0])
+SUM(RAM[G2L0],RAM[G2L0])
+CPY.INV(,RAM[G2R1])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY.INV(,RAM[G2R2])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY.INV(,RAM[G2R3])
+SUM(RAM[G2L3],RAM[G2L3])
+CPY.INV(,RAM[G2R4])
+SUM(RAM[G2L4],RAM[G2L4])
+
+# IF (G2L < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
+CPY(,RAM[G2L0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY(,RAM[G2L1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[G2L2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[G2L3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY(,RAM[G2L4])
+SUM(RAM[G1T4],RAM[G1T4])
+CLR()
+SUM(,Z)
+
+# IF (G1T >= 16)
+CPY(FLAG,RAM[G1T4])
+# G1T = G1T | 15
+SET(RAM[G1T0])
+SET(RAM[G1T1])
+SET(RAM[G1T2])
+SET(RAM[G1T3])
+# END IF
+SET(FLAG)
+
+# Save G1T/2 out
+CPY(NEWS,RAM[G1T3])
+SAVE(IMG_NE2)
+CPY(NEWS,RAM[G1T2])
+SAVE(IMG_NE1)
+CPY(NEWS,RAM[G1T1])
+SAVE(IMG_NE0)
+
+########################## SW ##########################
+# Read ALL neigbors into ram. This will make calculations easier later
+
+# ----------------- PLANE 0 -----------------
+SET(NEWS)
+BDR(SOUTH)
+BDR(WEST)
+CPY(NEWS,RAM[SE0])
+BDR(EAST)
+CPY(NEWS,RAM[NW0])
+BDR(NORTH)
+CPY(NEWS,RAM[SW0])
+CPY(RAM[MY_E0],EAST)
+CPY(RAM[MY_W0],WEST)
+CPY(NEWS RAM[MY_N0],NORTH) # Shift south
+CPY(RAM[MY_NE0],EAST)
+CPY(RAM[MY_NW0],WEST)
+CPY(NEWS,RAM[SW0]) # Restore
+CPY(NEWS RAM[MY_S0],SOUTH) # Shift north
+CPY(RAM[MY_SE0],EAST)
+CPY(RAM[MY_SW0],WEST)
+# ----------------- PLANE 1 -----------------
+CPY(NEWS,RAM[SE1])
+BDR(EAST)
+CPY(NEWS,RAM[NW1])
+BDR(NORTH)
+CPY(NEWS,RAM[SW1])
+CPY(RAM[MY_E1],EAST)
+CPY(RAM[MY_W1],WEST)
+CPY(NEWS RAM[MY_N1],NORTH) # Shift south
+CPY(RAM[MY_NE1],EAST)
+CPY(RAM[MY_NW1],WEST)
+CPY(NEWS,RAM[SW1]) # Restore
+CPY(NEWS RAM[MY_S1],SOUTH) # Shift north
+CPY(RAM[MY_SE1],EAST)
+CPY(RAM[MY_SW1],WEST)
+# ----------------- PLANE 2 -----------------
+CPY(NEWS,RAM[NE2])
+BDR(EAST)
+CPY(NEWS,RAM[SW2])
+BDR(SOUTH)
+CPY(NEWS,RAM[NW2])
+CPY(RAM[MY_E2],EAST)
+CPY(RAM[MY_W2],WEST)
+CPY(NEWS RAM[MY_N2],NORTH) # Shift south
+CPY(RAM[MY_NE2],EAST)
+CPY(RAM[MY_NW2],WEST)
+CPY(NEWS,RAM[NW2]) # Restore
+CPY(NEWS RAM[MY_S2],SOUTH) # Shift north
+CPY(RAM[MY_SE2],EAST)
+CPY(RAM[MY_SW2],WEST)
+
+# ======================== G1 ===========================
+# G1T = NE + NW
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_NW0]) # Add east and west together
+CPY(RAM[G1T0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_NW1]) # Add east and west together
+CPY(RAM[G1T1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_NW2]) # Add east and west together
+CPY(RAM[G1T2],X)
+CLR()
+SUM(RAM[G1T3],Z)
+
+# G1T = G1T + N*2
+CPY(,RAM[MY_N0])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[MY_N1])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[MY_N2])
+SUM(RAM[G1T3],RAM[G1T3])
+CLR()
+SUM(RAM[G1T4],Z)
+
+# G1B = SE + SW
+CPY(,RAM[MY_SE0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G1B0],X)
+CPY(,RAM[MY_SE1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G1B1],X)
+CPY(,RAM[MY_SE2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G1B2],X)
+CLR()
+SUM(RAM[G1B3],Z)
+
+# G1B = G1B + S*2
+CPY(,RAM[MY_S0])
+SUM(RAM[G1B1],RAM[G1B1])
+CPY(,RAM[MY_S1])
+SUM(RAM[G1B2],RAM[G1B2])
+CPY(,RAM[MY_S2])
+SUM(RAM[G1B3],RAM[G1B3])
+CLR()
+SUM(RAM[G1B4],Z)
+
+# G1T = G1T - G1B
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G1B0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY.INV(,RAM[G1B1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY.INV(,RAM[G1B2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY.INV(,RAM[G1B3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY.INV(,RAM[G1B4])
+SUM(RAM[G1T4],RAM[G1T4])
+
+# IF (G1T < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# ======================== G2 ===========================
+# G2L = NW + SW
+CPY(,RAM[MY_NW0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G2L0],X)
+CPY(,RAM[MY_NW1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G2L1],X)
+CPY(,RAM[MY_NW2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G2L2],X)
+CLR()
+SUM(RAM[G2L3],Z)
+
+# G2L = G2L + W*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2L3],RAM[G2L3])
+CLR()
+SUM(RAM[G2L4],Z)
+
+# G2R = NE + SE
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_SE0]) # Add east and west together
+CPY(RAM[G2R0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_SE1]) # Add east and west together
+CPY(RAM[G2R1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_SE2]) # Add east and west together
+CPY(RAM[G2R2],X)
+CLR()
+SUM(RAM[G2R3],Z)
+
+# G2R = G2R + E*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2R1],RAM[G2R1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2R2],RAM[G2R2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2R3],RAM[G2R3])
+CLR()
+SUM(RAM[G2R4],Z)
+
+# G2L = G2L - G2R
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G2R0])
+SUM(RAM[G2L0],RAM[G2L0])
+CPY.INV(,RAM[G2R1])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY.INV(,RAM[G2R2])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY.INV(,RAM[G2R3])
+SUM(RAM[G2L3],RAM[G2L3])
+CPY.INV(,RAM[G2R4])
+SUM(RAM[G2L4],RAM[G2L4])
+
+# IF (G2L < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
+CPY(,RAM[G2L0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY(,RAM[G2L1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[G2L2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[G2L3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY(,RAM[G2L4])
+SUM(RAM[G1T4],RAM[G1T4])
+CLR()
+SUM(,Z)
+
+# IF (G1T >= 16)
+CPY(FLAG,RAM[G1T4])
+# G1T = G1T | 15
+SET(RAM[G1T0])
+SET(RAM[G1T1])
+SET(RAM[G1T2])
+SET(RAM[G1T3])
+# END IF
+SET(FLAG)
+
+# Save G1T/2 out
+CPY(NEWS,RAM[G1T3])
+SAVE(IMG_SW2)
+CPY(NEWS,RAM[G1T2])
+SAVE(IMG_SW1)
+CPY(NEWS,RAM[G1T1])
+SAVE(IMG_SW0)
+
+########################## SE ##########################
+# Read ALL neigbors into ram. This will make calculations easier later
+
+# ----------------- PLANE 0 -----------------
+SET(NEWS)
+BDR(SOUTH)
+BDR(EAST)
+CPY(NEWS,RAM[SW0])
+BDR(WEST)
+CPY(NEWS,RAM[NE0])
+BDR(NORTH)
+CPY(NEWS,RAM[SE0])
+CPY(RAM[MY_E0],EAST)
+CPY(RAM[MY_W0],WEST)
+CPY(NEWS RAM[MY_N0],NORTH) # Shift south
+CPY(RAM[MY_NE0],EAST)
+CPY(RAM[MY_NW0],WEST)
+CPY(NEWS,RAM[SE0]) # Restore
+CPY(NEWS RAM[MY_S0],SOUTH) # Shift north
+CPY(RAM[MY_SE0],EAST)
+CPY(RAM[MY_SW0],WEST)
+# ----------------- PLANE 1 -----------------
+CPY(NEWS,RAM[SW1])
+BDR(WEST)
+CPY(NEWS,RAM[NE1])
+BDR(NORTH)
+CPY(NEWS,RAM[SE1])
+CPY(RAM[MY_E1],EAST)
+CPY(RAM[MY_W1],WEST)
+CPY(NEWS RAM[MY_N1],NORTH) # Shift south
+CPY(RAM[MY_NE1],EAST)
+CPY(RAM[MY_NW1],WEST)
+CPY(NEWS,RAM[SE1]) # Restore
+CPY(NEWS RAM[MY_S1],SOUTH) # Shift north
+CPY(RAM[MY_SE1],EAST)
+CPY(RAM[MY_SW1],WEST)
+# ----------------- PLANE 2 -----------------
+CPY(NEWS,RAM[SW2])
+BDR(WEST)
+CPY(NEWS,RAM[NE2])
+BDR(NORTH)
+CPY(NEWS,RAM[SE2])
+CPY(RAM[MY_E2],EAST)
+CPY(RAM[MY_W2],WEST)
+CPY(NEWS RAM[MY_N2],NORTH) # Shift south
+CPY(RAM[MY_NE2],EAST)
+CPY(RAM[MY_NW2],WEST)
+CPY(NEWS,RAM[SE2]) # Restore
+CPY(NEWS RAM[MY_S2],SOUTH) # Shift north
+CPY(RAM[MY_SE2],EAST)
+CPY(RAM[MY_SW2],WEST)
+
+# ======================== G1 ===========================
+# G1T = NE + NW
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_NW0]) # Add east and west together
+CPY(RAM[G1T0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_NW1]) # Add east and west together
+CPY(RAM[G1T1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_NW2]) # Add east and west together
+CPY(RAM[G1T2],X)
+CLR()
+SUM(RAM[G1T3],Z)
+
+# G1T = G1T + N*2
+CPY(,RAM[MY_N0])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[MY_N1])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[MY_N2])
+SUM(RAM[G1T3],RAM[G1T3])
+CLR()
+SUM(RAM[G1T4],Z)
+
+# G1B = SE + SW
+CPY(,RAM[MY_SE0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G1B0],X)
+CPY(,RAM[MY_SE1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G1B1],X)
+CPY(,RAM[MY_SE2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G1B2],X)
+CLR()
+SUM(RAM[G1B3],Z)
+
+# G1B = G1B + S*2
+CPY(,RAM[MY_S0])
+SUM(RAM[G1B1],RAM[G1B1])
+CPY(,RAM[MY_S1])
+SUM(RAM[G1B2],RAM[G1B2])
+CPY(,RAM[MY_S2])
+SUM(RAM[G1B3],RAM[G1B3])
+CLR()
+SUM(RAM[G1B4],Z)
+
+# G1T = G1T - G1B
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G1B0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY.INV(,RAM[G1B1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY.INV(,RAM[G1B2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY.INV(,RAM[G1B3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY.INV(,RAM[G1B4])
+SUM(RAM[G1T4],RAM[G1T4])
+
+# IF (G1T < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# ======================== G2 ===========================
+# G2L = NW + SW
+CPY(,RAM[MY_NW0]) 
+SUM(X,RAM[MY_SW0]) # Add east and west together
+CPY(RAM[G2L0],X)
+CPY(,RAM[MY_NW1]) 
+SUM(X,RAM[MY_SW1]) # Add east and west together
+CPY(RAM[G2L1],X)
+CPY(,RAM[MY_NW2]) 
+SUM(X,RAM[MY_SW2]) # Add east and west together
+CPY(RAM[G2L2],X)
+CLR()
+SUM(RAM[G2L3],Z)
+
+# G2L = G2L + W*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2L3],RAM[G2L3])
+CLR()
+SUM(RAM[G2L4],Z)
+
+# G2R = NE + SE
+CPY(,RAM[MY_NE0]) 
+SUM(X,RAM[MY_SE0]) # Add east and west together
+CPY(RAM[G2R0],X)
+CPY(,RAM[MY_NE1]) 
+SUM(X,RAM[MY_SE1]) # Add east and west together
+CPY(RAM[G2R1],X)
+CPY(,RAM[MY_NE2]) 
+SUM(X,RAM[MY_SE2]) # Add east and west together
+CPY(RAM[G2R2],X)
+CLR()
+SUM(RAM[G2R3],Z)
+
+# G2R = G2R + E*2
+CPY(,RAM[MY_W0])
+SUM(RAM[G2R1],RAM[G2R1])
+CPY(,RAM[MY_W1])
+SUM(RAM[G2R2],RAM[G2R2])
+CPY(,RAM[MY_W2])
+SUM(RAM[G2R3],RAM[G2R3])
+CLR()
+SUM(RAM[G2R4],Z)
+
+# G2L = G2L - G2R
+SET() # Set accumulator
+SUM(,Y) # Add 1 to generate carry which we'll use for 2's complement
+CPY.INV(,RAM[G2R0])
+SUM(RAM[G2L0],RAM[G2L0])
+CPY.INV(,RAM[G2R1])
+SUM(RAM[G2L1],RAM[G2L1])
+CPY.INV(,RAM[G2R2])
+SUM(RAM[G2L2],RAM[G2L2])
+CPY.INV(,RAM[G2R3])
+SUM(RAM[G2L3],RAM[G2L3])
+CPY.INV(,RAM[G2R4])
+SUM(RAM[G2L4],RAM[G2L4])
+
+# IF (G2L < 0)
+CLR()
+SUM.INV(FLAG,Z) # Positive sums generate a carry.
+
+# G1T = -G1T
+CPY.INV(,RAM[G1T0])
+SUM(RAM[G1T0],Y)
+CPY.INV(,RAM[G1T1])
+SUM(RAM[G1T1],Z)
+CPY.INV(,RAM[G1T2])
+SUM(RAM[G1T2],Z)
+CPY.INV(,RAM[G1T3])
+SUM(RAM[G1T3],Z)
+CPY.INV(,RAM[G1T4])
+SUM(RAM[G1T4],Z)
+CLR()
+SUM(,Z) # Discard carry
+
+# END IF
+SET(FLAG)
+
+# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
+CPY(,RAM[G2L0])
+SUM(RAM[G1T0],RAM[G1T0])
+CPY(,RAM[G2L1])
+SUM(RAM[G1T1],RAM[G1T1])
+CPY(,RAM[G2L2])
+SUM(RAM[G1T2],RAM[G1T2])
+CPY(,RAM[G2L3])
+SUM(RAM[G1T3],RAM[G1T3])
+CPY(,RAM[G2L4])
+SUM(RAM[G1T4],RAM[G1T4])
+CLR()
+SUM(,Z)
+
+# IF (G1T >= 16)
+CPY(FLAG,RAM[G1T4])
+# G1T = G1T | 15
+SET(RAM[G1T0])
+SET(RAM[G1T1])
+SET(RAM[G1T2])
+SET(RAM[G1T3])
+# END IF
+SET(FLAG)
+
+# Save G1T/2 out
+CPY(NEWS,RAM[G1T3])
+SAVE(IMG_SE2)
+CPY(NEWS,RAM[G1T2])
+SAVE(IMG_SE1)
+CPY(NEWS,RAM[G1T1])
+SAVE(IMG_SE0)

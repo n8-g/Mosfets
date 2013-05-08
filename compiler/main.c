@@ -73,9 +73,17 @@ enum word_offset_t
 	CTRL_OFF = 28
 };
 
+typedef struct symbol
+{
+	int addr;
+	char name[32];
+} symbol_t;
+
 static int lineno;
 static char* filename;
 static char* lexer_ptr;
+static symbol_t symbols[512];
+static int nsymbols;
 
 int print_usage(char* filename)
 {
@@ -139,6 +147,18 @@ void write_instr(FILE* out, unsigned int instr)
 	fputc((instr>>24)&0xFF,out);
 }
 
+int lookup_symbol(int* addr, const char* name)
+{
+	int i;
+	for (i = 0; i < nsymbols; ++i)
+		if (!strcmp(symbols[i].name,name))
+		{
+			*addr = symbols[i].addr;
+			return 0;
+		}
+	return error("Undefined symbol: '%s'",name);
+}
+
 int parse_instr(FILE* out)
 {
 	unsigned int instr = 0;
@@ -148,6 +168,18 @@ int parse_instr(FILE* out)
 	char lex[32];
 	if (next_token(NULL,lex) == NONE)
 		return 0;
+	if (!strcmp(lex,".")) // Definitions
+	{
+		next_token(NULL,lex);
+		if (!strcmp(lex,"ADDR"))
+		{
+			next_token(NULL,lex);
+			strcpy(symbols[nsymbols].name,lex);
+			next_token(&symbols[nsymbols].addr,lex);
+			++nsymbols;
+		}
+		return 0; // Stop processing
+	}
 	if (!strcmp(lex,"LOAD"))
 		ctrl = LOAD;
 	else if (!strcmp(lex,"SAVE"))
@@ -199,19 +231,19 @@ int parse_instr(FILE* out)
 	switch(ctrl)
 	{
 	case LOAD:
-		if (next_token(&ramaddr,lex) != INT)
-			return error("Expected: integer");
+		if (next_token(&ramaddr,lex) != INT && lookup_symbol(&ramaddr,lex))
+			return -1;
 		instr |= ((ramaddr & 0xFF) << LOAD_RAMADDR_OFF);
 		next_token(NULL,lex);
 		if (expect(",",lex)) return -1;
-		if (next_token(&imgaddr,lex) != INT)
-			return error("Expected: integer");
+		if (next_token(&imgaddr,lex) != INT && lookup_symbol(&imgaddr,lex))
+			return -1;
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
 		next_token(NULL,lex);
 		break;
 	case SAVE:
-		if (next_token(&imgaddr,lex) != INT)
-			return error("Expected: integer");
+		if (next_token(&imgaddr,lex) != INT && lookup_symbol(&imgaddr,lex))
+			return -1;
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
 		next_token(NULL,lex);
 		break;
@@ -236,8 +268,8 @@ int parse_instr(FILE* out)
 			if (!strcmp(lex,"RAM"))
 			{
 				if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
-				if (next_token(&ramaddr,lex) != INT)
-					return error("Expected: integer");
+				if (next_token(&ramaddr,lex) != INT && lookup_symbol(&ramaddr,lex))
+					return -1;
 				instr |= 1 << RAM_OFF;
 				instr |= ((ramaddr & 0xFF) << ADDR_OFF);
 				if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
@@ -275,8 +307,8 @@ int parse_instr(FILE* out)
 			else if (!strcmp(lex,"RAM"))
 			{
 				if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
-				if (next_token(&val,lex) != INT)
-					return error("Expected: integer");
+				if (next_token(&val,lex) != INT && lookup_symbol(&val,lex))
+					return -1;
 				if (ramaddr != -1 && ramaddr != val)
 					return error("Cannot access different RAM addresses in one instruction");
 				instr |= (IN_RAM << INSEL_OFF);
