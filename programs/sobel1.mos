@@ -39,10 +39,10 @@ SET(Y)
 CLR(Z)
 
 # Load entire image
-LOAD(NW0,IMG_NW0)
-LOAD(NE0,IMG_NE0)
-LOAD(SW0,IMG_SW0)
-LOAD(SE0,IMG_SE0)
+LOAD(RAM[NW0],IMG_NW0,2)
+LOAD(RAM[NE0],IMG_NE0,2)
+LOAD(RAM[SW0],IMG_SW0,2)
+LOAD(RAM[SE0],IMG_SE0,2)
 
 ########################## NW ##########################
 # Read ALL neigbors into ram. This will make calculations easier later
@@ -194,7 +194,7 @@ SET(FLAG)
 
 # Save G1T/2 out
 CPY(NEWS,RAM[G1T1])
-SAVE(IMG_NW0)
+SAVE(IMG_NW0,2)
 
 ########################## NE ##########################
 # Read ALL neigbors into ram. This will make calculations easier later
@@ -338,7 +338,7 @@ SUM(,Z)
 
 # Save G1T/2 out
 CPY(NEWS,RAM[G1T1])
-SAVE(IMG_NE0)
+SAVE(IMG_NE0,2)
 
 ########################## SW ##########################
 # Read ALL neigbors into ram. This will make calculations easier later
@@ -481,7 +481,7 @@ SUM(,Z)
 
 # Save G1T/2 out
 CPY(NEWS,RAM[G1T1])
-SAVE(IMG_SW0)
+SAVE(IMG_SW0,2)
 
 ########################## SE ##########################
 # Read ALL neigbors into ram. This will make calculations easier later
@@ -624,4 +624,4 @@ SUM(,Z)
 
 # Save G1T/2 out
 CPY(NEWS,RAM[G1T1])
-SAVE(IMG_SE0)
+SAVE(IMG_SE0,2)

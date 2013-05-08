@@ -9,10 +9,10 @@
 .ADDR SE 252
 
 # Load entire image
-LOAD(NW,IMG_NW) # NW
-LOAD(NE,IMG_NE) # NE
-LOAD(SW,IMG_SW) # SW
-LOAD(SE,IMG_SE) # SE
+LOAD(RAM[NW],IMG_NW,2) # NW
+LOAD(RAM[NE],IMG_NE,2) # NE
+LOAD(RAM[SW],IMG_SW,2) # SW
+LOAD(RAM[SE],IMG_SE,2) # SE
 
 # NW
 SET(NEWS)
@@ -53,7 +53,7 @@ AND(RAM[0],WEST) # If all of them were white, turn white
 SET(FLAG)
 CPY(NEWS,RAM[0])
 
-SAVE(IMG_NW)
+SAVE(IMG_NW,2)
 
 # NE
 SET(NEWS)
@@ -93,7 +93,7 @@ AND(RAM[0],WEST) # If all of them were white, turn white
 SET(FLAG)
 CPY(NEWS,RAM[0])
 
-SAVE(IMG_NE)
+SAVE(IMG_NE,2)
 
 # SW
 SET(NEWS)
@@ -134,7 +134,7 @@ AND(RAM[0],WEST) # If all of them were white, turn white
 SET(FLAG)
 CPY(NEWS,RAM[0])
 
-SAVE(IMG_SW)
+SAVE(IMG_SW,2)
 
 # SE
 SET(NEWS)
@@ -165,7 +165,7 @@ CPY.INV(FLAG,X) # Black pixels only
 CPY(,RAM[0])
 AND(,RAM[1])
 AND(,RAM[2])
-AND(,RAM[3])
+
 AND(,NORTH)
 AND(,SOUTH)
 AND(,EAST)
@@ -174,4 +174,4 @@ AND(RAM[0],WEST) # If all of them were white, turn white
 SET(FLAG)
 CPY(NEWS,RAM[0])
 
-SAVE(IMG_SE)
+SAVE(IMG_SE,2)

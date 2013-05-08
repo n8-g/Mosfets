@@ -69,6 +69,7 @@ enum word_offset_t
 	LOAD_RAMADDR_OFF = 0,
 	LOAD_IMGADDR_OFF = 8,
 	SAVE_IMGADDR_OFF = 8,
+	STRIDE_OFF = 16,
 	BDR_OFF = 0,
 	CTRL_OFF = 28
 };
@@ -164,7 +165,7 @@ int parse_instr(FILE* out)
 	unsigned int instr = 0;
 	int ctrl = NORMAL;
 	int val;
-	int ramaddr = -1, imgaddr;
+	int ramaddr = -1, imgaddr, stride;
 	char lex[32];
 	if (next_token(NULL,lex) == NONE)
 		return 0;
@@ -231,8 +232,14 @@ int parse_instr(FILE* out)
 	switch(ctrl)
 	{
 	case LOAD:
+		next_token(NULL,lex);
+		if (expect("RAM",lex)) return -1;
+		next_token(NULL,lex);
+		if (expect("[",lex)) return -1;
 		if (next_token(&ramaddr,lex) != INT && lookup_symbol(&ramaddr,lex))
 			return -1;
+		next_token(NULL,lex);
+		if (expect("]",lex)) return -1;
 		instr |= ((ramaddr & 0xFF) << LOAD_RAMADDR_OFF);
 		next_token(NULL,lex);
 		if (expect(",",lex)) return -1;
@@ -240,11 +247,21 @@ int parse_instr(FILE* out)
 			return -1;
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
 		next_token(NULL,lex);
+		if (expect(",",lex)) return -1;
+		if (next_token(&stride,lex) != INT)
+			return error("Expected: stride");
+		instr |= ((stride & 0xFF) << STRIDE_OFF);
+		next_token(NULL,lex);
 		break;
 	case SAVE:
 		if (next_token(&imgaddr,lex) != INT && lookup_symbol(&imgaddr,lex))
 			return -1;
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
+		next_token(NULL,lex);
+		if (expect(",",lex)) return -1;
+		if (next_token(&stride,lex) != INT)
+			return error("Expected: stride");
+		instr |= ((stride & 0xFF) << STRIDE_OFF);
 		next_token(NULL,lex);
 		break;
 	case BDR:

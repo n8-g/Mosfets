@@ -1,4 +1,4 @@
-all: edge.bin sobel.bin erosion.bin sobel1.bin edge32.bin
+all: edge.bin sobel.bin erosion.bin sobel1.bin
 %.bin: %.mos mosc
 	../compiler/mosc -o $@ $<
 mosc:
