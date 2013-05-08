@@ -65,9 +65,9 @@ int load_png_rgba(unsigned int* image, FILE* file)
 		int j,k;
 		for (j = 0; j < WIDTH; ++j)
 		{
-			unsigned int v = (data[i][j*4]+data[i][j*4+1]+data[i][j*4+2]) / 3;
+			unsigned char v = (data[i][j*4]+data[i][j*4+1]+data[i][j*4+2]) / 3;
 			for (k = 0; k < DEPTH; ++k)
-				image[i+k*HEIGHT] |= ((v>>(DEPTH-k)) & 0x1) << j;
+				image[i+k*HEIGHT] |= ((v>>(7-k)) & 0x1) << j;
 		}
 	}
 	return 0;
