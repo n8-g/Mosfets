@@ -58,6 +58,8 @@ package instr_word is
 	constant LOAD_RAMADDR_OFF : integer := 0;
 	constant LOAD_IMGADDR_OFF : integer := 8;
 	constant SAVE_IMGADDR_OFF : integer := 8;
+	constant LOAD_STRIDE_OFF : integer := 16;
+	constant SAVE_STRIDE_OFF : integer := 16;
 	constant CTRL_OFF : integer := 28;
 	constant BDR_OFF : integer := 0;
 	

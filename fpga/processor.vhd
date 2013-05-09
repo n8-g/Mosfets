@@ -134,17 +134,13 @@ architecture Behavioral of processor is
 	signal load_data : std_logic;
 	signal load_instr : std_logic;
 	signal ready : std_logic;
-	signal halted : std_logic;
 	signal started : std_logic;
+	signal halted : std_logic;
 	
 	signal data_loaded : std_logic;
 	signal instr_loaded : std_logic;
 	
-	signal img_we : std_logic;
 	signal img_in : std_logic_vector(size-1 downto 0);
-	signal img_outaddr : std_logic_vector(7 downto 0);
-	signal img_inaddr : std_logic_vector(7 downto 0);
-	signal img_inoff : std_logic_vector(7 downto 0);
 
 	signal pe_ce : std_logic;
 	signal pe_clrcar : std_logic;
@@ -162,13 +158,19 @@ architecture Behavioral of processor is
 	signal pe_east : std_logic_vector(size-1 downto 0);
 	signal pe_west : std_logic_vector(size-1 downto 0);
 	
-	signal instr_valid : std_logic;
-	signal fetch_instr : std_logic;
+	signal fetch_instr : std_logic; -- Fetch enable
+	signal if_instr : std_logic_vector(31 downto 0); -- Instruction Fetch stage instruction
+	signal if_ctrl : std_logic_vector(3 downto 0); -- Instruction Fecth stage control word
+	signal id_instr : std_logic_vector(31 downto 0); -- Instruction Decode stage instruction
+	signal id_ctrl : std_logic_vector(3 downto 0);  -- Instruction Decode stage control
+	signal id_valid : std_logic; -- Instruction Decode stage valid
+	signal id_addr : std_logic_vector(7 downto 0); -- Data cache address to fetch
+	signal ex_instr : std_logic_vector(31 downto 0); -- Execution stage instruction
+	signal ex_ctrl : std_logic_vector(3 downto 0); -- Execution stage control
+	signal ex_valid : std_logic; -- Execution stage valid
+	signal ex_addr : std_logic_vector(7 downto 0); -- Data cache address to write
+	signal ex_we : std_logic; -- Data cache enable
 	signal pc : std_logic_vector(pclen-1 downto 0);
-	signal next_instr : std_logic_vector(31 downto 0);
-	signal next_ctrl : std_logic_vector(3 downto 0);
-	signal instr : std_logic_vector(31 downto 0);
-	signal ctrl : std_logic_vector(3 downto 0);
 	signal instr_counter : std_logic_vector(7 downto 0);
 	signal instr_cycles : integer;
 begin
@@ -207,7 +209,7 @@ begin
 			a_we => ld_instr_we,
 			a_dout => open,
 			b_addr => pc,
-			b_dout => next_instr,
+			b_dout => if_instr,
 			b_en => fetch_instr,
 			b_we => '0',
 			b_din => (others=>'0')
@@ -286,32 +288,29 @@ begin
 	
 	-- Video ram loader
 	vram_src_data <= data_out;
-	vram_src_addr <= vram_depth&vram_addr(4 downto 0)&vram_piece; -- Source address to fetch
-	vram_data <= vram_row&vram_src_data; -- Current row value
+	vram_src_addr <= vram_depth&vram_addr(4 downto 0)&(not vram_piece); -- Source address to fetch
+	vram_data <= vram_row&vram_src_data; -- Current row value'
+	vram_we <= '1' when vram_ready = '1' and vram_depth = vga_depth-1 and vram_piece = "1" else '0';
 	vgaLoader : process(rst,clk)
 	begin
 		if (rst = '0') then
 			vram_addr <= (others=>'0');
 			vram_row <= (others=>'0');
-			vram_piece <= "0";
+			vram_piece <= (others=>'0');
 			vram_depth <= "00";
 			vram_ready <= '0'; -- Whether vga_src_row is valid
-			vram_we <= '0';
 		elsif (rising_edge(clk)) then
-			if (vram_we = '1') then
-				vram_we <= '0';
-				if (vram_addr = vga_height-1) then -- Last row
-					vram_addr <= (others=>'0');
-				else
-					vram_addr <= vram_addr + '1';
-				end if;
-			elsif (vram_ready = '1') then
+			if (vram_ready = '1') then
 				vram_row <= vram_data(vga_width*vga_depth-size-1 downto 0); -- Update row
-				if (vram_piece = stride-1) then -- Last piece
-					vram_piece <= "0";
+				if (vram_piece = stride-1) then -- Last piece in row
+					vram_piece <= (others=>'0');
 					if (vram_depth = vga_depth-1) then -- Last depth
 						vram_depth <= "00";
-						vram_we <= '1';
+						if (vram_addr = vga_height-1) then -- Last row
+							vram_addr <= (others=>'0');
+						else
+							vram_addr <= vram_addr + '1';
+						end if;
 					else
 						vram_depth <= vram_depth + '1';
 					end if;
@@ -376,7 +375,7 @@ begin
 	end process;
 	
 	-- Priority encoder
-	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,pe_north,img_outaddr,img_we,sw)
+	process(instr_loaded,data_loaded,flash_ready,ld_instr_addr,ld_data_addr,flash_data,pe_north,ex_addr,ex_we,sw,started)
 	begin
 		load_instr <= '0';
 		load_data <= '0';
@@ -403,13 +402,13 @@ begin
 			flash_page <= x"2"&sw(5 downto 3)&'0';
 			flash_offset(ld_data_addr'RANGE) <= ld_data_addr;
 		else
-			ready <= '1';
+			ready <= started;
 			data_in <= pe_north;
-			data_inaddr <= img_outaddr;
-			data_we <= img_we;
+			data_inaddr <= ex_addr;
+			data_we <= ex_we;
 		end if;
 	end process;
-	data_outaddr <= img_inaddr when next_instr(31 downto CTRL_OFF) = LOAD else vram_src_addr;
+	data_outaddr <= id_addr when id_ctrl = LOAD else vram_src_addr;
 	
 	-- Loaders
 	ld_instr_data <= flash_data & ld_instr_loword;
@@ -445,18 +444,18 @@ begin
 	end process;
 	
 	-- Control unit
-	
-	ctrl <= instr(31 downto CTRL_OFF);
-	next_ctrl <= next_instr(31 downto CTRL_OFF);
+	ex_ctrl <= ex_instr(31 downto CTRL_OFF);
+	id_ctrl <= id_instr(31 downto CTRL_OFF);
+	if_ctrl <= if_instr(31 downto CTRL_OFF);
 	img_in <= data_out;
-	ce <= ready and started and not halted;
+	ce <= ready and not halted;
 	north <= bordern;
 	east <= bordere;
 	west <= borderw;
 	south <= img_in when load_image = '1' else borders;
 	
 	-- Processing Element Configuration
-	process(instr,ctrl)
+	process(ex_instr,ex_ctrl)
 	begin
 		-- Defaults
 		pe_ce <= '0';
@@ -470,91 +469,100 @@ begin
 		pe_set_ram <= '0';
 		pe_set_flag <= '0';
 		pe_set_news <= '0';
-		img_we <= '0';
+		ex_we <= '0';
 		load_image <= '0';
-		case ctrl is
+		case ex_ctrl is
 			when HALT => 
 			when NORMAL =>
 				pe_ce <= '1';
-				pe_clrcar <= instr(CLRCAR_OFF);
-				pe_aluop <= instr(ALU_OFF+2 downto ALU_OFF);
-				pe_invacc <= instr(INVACC_OFF);
-				pe_invout <= instr(INVOUT_OFF);
-				pe_gpregsel <= instr(GPREG_OFF+1 downto GPREG_OFF);
-				pe_insel <= instr(INSEL_OFF+2 downto INSEL_OFF);
-				pe_ram_addr <= instr(RAMADDR_OFF+7 downto RAMADDR_OFF);
-				pe_set_ram <= instr(SETRAM_OFF);
-				pe_set_flag <= instr(SETFLAG_OFF);
-				pe_set_news <= instr(SETNEWS_OFF);
+				pe_clrcar <= ex_instr(CLRCAR_OFF);
+				pe_aluop <= ex_instr(ALU_OFF+2 downto ALU_OFF);
+				pe_invacc <= ex_instr(INVACC_OFF);
+				pe_invout <= ex_instr(INVOUT_OFF);
+				pe_gpregsel <= ex_instr(GPREG_OFF+1 downto GPREG_OFF);
+				pe_insel <= ex_instr(INSEL_OFF+2 downto INSEL_OFF);
+				pe_ram_addr <= ex_instr(RAMADDR_OFF+7 downto RAMADDR_OFF);
+				pe_set_ram <= ex_instr(SETRAM_OFF);
+				pe_set_flag <= ex_instr(SETFLAG_OFF);
+				pe_set_news <= ex_instr(SETNEWS_OFF);
 			when LOAD =>
 				pe_ce <= '1';
-				pe_ram_addr <= instr(LOAD_RAMADDR_OFF+7 downto LOAD_RAMADDR_OFF);
+				pe_ram_addr <= ex_instr(LOAD_RAMADDR_OFF+7 downto LOAD_RAMADDR_OFF);
 				pe_set_ram <= '1';
 				pe_set_news <= '1';
 				load_image <= '1';
 			when SAVE =>
 				pe_ce <= '1';
 				pe_set_news <= '1';
-				img_we <= '1';
+				ex_we <= '1';
 			when OTHERS =>
 		end case;
 	end process;
 	-- Instruction cycle count
-	process(next_ctrl)
+	process(if_ctrl)
 	begin
-		case next_ctrl is
+		case if_ctrl is
 			when LOAD => instr_cycles <= size-1;
 			when SAVE => instr_cycles <= size-1;
 			when OTHERS => instr_cycles <= 0;
 		end case;
 	end process;
 	-- Controller process
-	fetch_instr <= '1' when instr_counter = instr_cycles or instr_valid = '0' else '0';
-	img_inaddr <= next_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF) + img_inoff;
+	fetch_instr <= '1' when (instr_counter = instr_cycles or id_valid = '0') and ce = '1' else '0';
+	ex_valid <= '1' when ex_ctrl /= HALT else '0';
+	id_valid <= '1' when id_ctrl /= HALT else '0';
+	halted <= '1' when if_ctrl = HALT else '0';
 	process(proc_rst,clk)
 		variable instr_fetched : std_logic;
 	begin
 		if (proc_rst = '0') then
 			pc <= (others=>'0');
-			instr_valid <= '0';
 			started <= '0';
-			halted <= '0';
 			bordern <= (others => '1');
 			borders <= (others => '1');
 			bordere <= (others => '1');
 			borderw <= (others => '1');
 			instr_counter <= (others=>'0');
-			instr <= (others=>'0');
-			img_inoff <= (others=>'0');
-			img_outaddr <= (others => '0');
+			id_instr <= (others=>'1');
+			ex_instr <= (others=>'1');
+			ex_addr <= (others=>'0');
+			id_addr <= (others => '0');
 		elsif (clk'event and clk = '1') then
+			if (ex_valid = '1') then -- Execution stage actions
+				case ex_ctrl is
+					when BDR =>
+						case ex_instr(BDR_OFF+1 downto BDR_OFF) is
+							when BDRN => bordern <= pe_south;
+							when BDRE => bordere <= pe_west;
+							when BDRS => borders <= pe_north;
+							when BDRW => borderw <= pe_east;
+							when others =>
+						end case;
+					when OTHERS =>
+				end case;
+			end if;
+			id_instr <= if_instr;
+			ex_instr <= id_instr;
+			ex_addr <= id_addr;
 			if (ce = '1') then -- Processor running
-				if (instr_valid = '1') then
-					case ctrl is
-						when LOAD => img_inoff <= img_inoff + stride;
-						when SAVE => img_outaddr <= img_outaddr + stride;
-						when BDR =>
-							case instr(BDR_OFF+1 downto BDR_OFF) is
-								when BDRN => bordern <= pe_south;
-								when BDRE => bordere <= pe_west;
-								when BDRS => borders <= pe_north;
-								when BDRW => borderw <= pe_east;
-								when others =>
-							end case;
+				if (instr_counter = 0) then
+					-- Load information from the new instruction
+					case if_ctrl is
+						when LOAD => id_addr <= if_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF); -- Setup decode stage address
+						when SAVE => id_addr <= if_instr(SAVE_IMGADDR_OFF+7 downto SAVE_IMGADDR_OFF); -- Setup decode stage address
+						when OTHERS =>
+					end case;
+				else
+					-- Update addresses
+					case id_ctrl is
+						when SAVE => id_addr <= id_addr + id_instr(SAVE_STRIDE_OFF+7 downto SAVE_STRIDE_OFF);
+						when LOAD => id_addr <= id_addr + id_instr(LOAD_STRIDE_OFF+7 downto LOAD_STRIDE_OFF);
 						when OTHERS =>
 					end case;
 				end if;
-				instr <= next_instr;
-				instr_valid <= '1';
 				if (fetch_instr = '1') then -- We're going to fetch a new instruction
 					instr_counter <= (others =>'0'); -- Reset counter
 					pc <= pc + '1';
-					case next_instr(31 downto CTRL_OFF) is -- Load information from the next instruction
-						when LOAD => img_inoff <= (others=>'0');
-						when SAVE => img_outaddr <= next_instr(SAVE_IMGADDR_OFF+7 downto SAVE_IMGADDR_OFF);
-						when HALT => halted <= '1';
-						when OTHERS =>
-					end case;
 				else
 					instr_counter <= instr_counter + '1';
 				end if;
