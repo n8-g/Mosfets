@@ -1,4 +1,4 @@
-all: tools image.bin erosion_image.bin sobel_image.bin mario.bin sword.bin bowser.bin
+all: tools image.bin erosion_image.bin sobel_image.bin mario.bin sword.bin bowser.bin mario_hc.bin
 %.bin: %.png
 	../mosconv/mosconv $< $@
 	../makehex/makehex -r -b $@ $@.txt
