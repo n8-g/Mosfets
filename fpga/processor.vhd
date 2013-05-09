@@ -136,6 +136,7 @@ architecture Behavioral of processor is
 	signal ready : std_logic;
 	signal started : std_logic;
 	signal halted : std_logic;
+	signal instr_valid : std_logic;
 	
 	signal data_loaded : std_logic;
 	signal instr_loaded : std_logic;
@@ -163,11 +164,11 @@ architecture Behavioral of processor is
 	signal if_ctrl : std_logic_vector(3 downto 0); -- Instruction Fecth stage control word
 	signal id_instr : std_logic_vector(31 downto 0); -- Instruction Decode stage instruction
 	signal id_ctrl : std_logic_vector(3 downto 0);  -- Instruction Decode stage control
-	signal id_valid : std_logic; -- Instruction Decode stage valid
+	signal id_halted : std_logic; -- Instruction Decode stage halted
 	signal id_addr : std_logic_vector(7 downto 0); -- Data cache address to fetch
 	signal ex_instr : std_logic_vector(31 downto 0); -- Execution stage instruction
 	signal ex_ctrl : std_logic_vector(3 downto 0); -- Execution stage control
-	signal ex_valid : std_logic; -- Execution stage valid
+	signal ex_halted : std_logic; -- Execution stage halted
 	signal ex_addr : std_logic_vector(7 downto 0); -- Data cache address to write
 	signal ex_we : std_logic; -- Data cache enable
 	signal pc : std_logic_vector(pclen-1 downto 0);
@@ -507,17 +508,18 @@ begin
 			when OTHERS => instr_cycles <= 0;
 		end case;
 	end process;
+	
 	-- Controller process
-	fetch_instr <= '1' when (instr_counter = instr_cycles or id_valid = '0') and ce = '1' else '0';
-	ex_valid <= '1' when ex_ctrl /= HALT else '0';
-	id_valid <= '1' when id_ctrl /= HALT else '0';
-	halted <= '1' when if_ctrl = HALT else '0';
+	fetch_instr <= '1' when instr_valid = '0' or (instr_counter = instr_cycles and if_ctrl /= HALT) else '0';
+	id_halted <= '1' when id_ctrl = HALT else '0';
+	ex_halted <= '1' when ex_ctrl = HALT else '0';
 	process(proc_rst,clk)
 		variable instr_fetched : std_logic;
 	begin
 		if (proc_rst = '0') then
 			pc <= (others=>'0');
 			started <= '0';
+			halted <= '0';
 			bordern <= (others => '1');
 			borders <= (others => '1');
 			bordere <= (others => '1');
@@ -527,8 +529,9 @@ begin
 			ex_instr <= (others=>'1');
 			ex_addr <= (others=>'0');
 			id_addr <= (others => '0');
+			instr_valid <= '0';
 		elsif (clk'event and clk = '1') then
-			if (ex_valid = '1') then -- Execution stage actions
+			if (ex_halted = '0') then -- Execution stage actions
 				case ex_ctrl is
 					when BDR =>
 						case ex_instr(BDR_OFF+1 downto BDR_OFF) is
@@ -541,15 +544,16 @@ begin
 					when OTHERS =>
 				end case;
 			end if;
-			id_instr <= if_instr;
 			ex_instr <= id_instr;
 			ex_addr <= id_addr;
 			if (ce = '1') then -- Processor running
+				id_instr <= if_instr;
 				if (instr_counter = 0) then
 					-- Load information from the new instruction
 					case if_ctrl is
 						when LOAD => id_addr <= if_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF); -- Setup decode stage address
 						when SAVE => id_addr <= if_instr(SAVE_IMGADDR_OFF+7 downto SAVE_IMGADDR_OFF); -- Setup decode stage address
+						when HALT => halted <= '1';
 						when OTHERS =>
 					end case;
 				else
@@ -561,6 +565,7 @@ begin
 					end case;
 				end if;
 				if (fetch_instr = '1') then -- We're going to fetch a new instruction
+					instr_valid <= '1';
 					instr_counter <= (others =>'0'); -- Reset counter
 					pc <= pc + '1';
 				else
