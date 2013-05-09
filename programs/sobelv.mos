@@ -126,22 +126,14 @@ SET(NEWS)
 BDR(NORTH)
 BDR(WEST)
 # ----------------- PLANE 0 -----------------
-CPY(NEWS,RAM[SE0])
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[NE0])
 CPY(RAM[NE_N0],NORTH)
 CPY(RAM[NE_S0],SOUTH)
 BDR(EAST)
-CPY(NEWS,RAM[NW0])
-BDR(NORTH) # Need the correct northern border for the shift
-SET(NEWS)
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[SW0])
 CPY(RAM[SW_N0],NORTH)
 CPY(RAM[SW_S0],SOUTH)
 BDR(SOUTH)
-SET(NEWS)
-BDR(NORTH) # Restore northern border
 CPY(NEWS,RAM[NW0])
 CPY(RAM[MY_E0],EAST)
 CPY(RAM[MY_W0],WEST)
@@ -166,22 +158,14 @@ CPY(NEWS,RAM[MY_S0])
 CPY(RAM[MY_SE0],EAST)
 CPY(RAM[MY_SW0],WEST)
 # ----------------- PLANE 1 -----------------
-CPY(NEWS,RAM[SE1])
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[NE1])
 CPY(RAM[NE_N1],NORTH)
 CPY(RAM[NE_S1],SOUTH)
 BDR(EAST)
-CPY(NEWS,RAM[NW1])
-BDR(NORTH) # Need the correct northern border for the shift
-SET(NEWS)
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[SW1])
 CPY(RAM[SW_N1],NORTH)
 CPY(RAM[SW_S1],SOUTH)
 BDR(SOUTH)
-SET(NEWS)
-BDR(NORTH) # Restore northern border
 CPY(NEWS,RAM[NW1])
 CPY(RAM[MY_E1],EAST)
 CPY(RAM[MY_W1],WEST)
@@ -206,22 +190,14 @@ CPY(NEWS,RAM[MY_S1])
 CPY(RAM[MY_SE1],EAST)
 CPY(RAM[MY_SW1],WEST)
 # ----------------- PLANE 2 -----------------
-CPY(NEWS,RAM[SE2])
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[NE2])
 CPY(RAM[NE_N2],NORTH)
 CPY(RAM[NE_S2],SOUTH)
 BDR(EAST)
-CPY(NEWS,RAM[NW2])
-BDR(NORTH) # Need the correct northern border for the shift
-SET(NEWS)
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[SW2])
 CPY(RAM[SW_N2],NORTH)
 CPY(RAM[SW_S2],SOUTH)
 BDR(SOUTH)
-SET(NEWS)
-BDR(NORTH) # Restore northern border
 CPY(NEWS,RAM[NW2])
 CPY(RAM[MY_E2],EAST)
 CPY(RAM[MY_W2],WEST)
@@ -410,36 +386,25 @@ SUM(,Z) # Discard carry
 # END IF
 SET(FLAG)
 
-# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
-CPY(,RAM[G2L0])
-SUM(RAM[G1T0],RAM[G1T0])
-CPY(,RAM[G2L1])
-SUM(RAM[G1T1],RAM[G1T1])
-CPY(,RAM[G2L2])
-SUM(RAM[G1T2],RAM[G1T2])
-CPY(,RAM[G2L3])
-SUM(RAM[G1T3],RAM[G1T3])
-CPY(,RAM[G2L4])
-SUM(RAM[G1T4],RAM[G1T4])
-CLR()
-SUM(RAM[G1T5],Z)
+# Use ONLY G1
+CLR(RAM[G1T5])
 
-# IF (G1T >= 16)
-CPY(FLAG,RAM[G1T4])
-# G1T = G1T | 15
-SET(RAM[G1T0])
-SET(RAM[G1T1])
-SET(RAM[G1T2])
-SET(RAM[G1T3])
-# END IF
-SET(FLAG)
+## IF (G1T >= 16)
+#CPY(FLAG,RAM[G1T4])
+## G1T = G1T | 15
+#SET(RAM[G1T0])
+#SET(RAM[G1T1])
+#SET(RAM[G1T2])
+#SET(RAM[G1T3])
+## END IF
+#SET(FLAG)
 
-# Save G1T/2 out
-CPY(NEWS,RAM[G1T3])
+# Save G1T/8 out
+CPY(NEWS,RAM[G1T5])
 SAVE(IMG_NW2,2)
-CPY(NEWS,RAM[G1T2])
+CPY(NEWS,RAM[G1T4])
 SAVE(IMG_NW1,2)
-CPY(NEWS,RAM[G1T1])
+CPY(NEWS,RAM[G1T3])
 SAVE(IMG_NW0,2)
 
 ########################## NE ##########################
@@ -449,22 +414,14 @@ SET(NEWS)
 BDR(NORTH)
 BDR(EAST)
 # ----------------- PLANE 0 -----------------
-CPY(NEWS,RAM[SW0])
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[NW0])
 CPY(RAM[NW_N0],NORTH)
 CPY(RAM[NW_S0],SOUTH)
 BDR(WEST)
-CPY(NEWS,RAM[NE0])
-BDR(NORTH) # Need the correct northern border for the shift
-SET(NEWS)
-BDR(SOUTH) # Need the correct southern border
 CPY(NEWS,RAM[SE0])
 CPY(RAM[SE_N0],NORTH)
 CPY(RAM[SE_S0],SOUTH)
 BDR(SOUTH)
-SET(NEWS)
-BDR(NORTH) # Restore northern border
 CPY(NEWS,RAM[NE0])
 CPY(RAM[MY_E0],EAST)
 CPY(RAM[MY_W0],WEST)
@@ -489,22 +446,14 @@ CPY(NEWS,RAM[MY_S0])
 CPY(RAM[MY_SE0],EAST)
 CPY(RAM[MY_SW0],WEST)
 # ----------------- PLANE 1 -----------------
-CPY(NEWS,RAM[SW1])
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[NW1])
 CPY(RAM[NW_N1],NORTH)
 CPY(RAM[NW_S1],SOUTH)
 BDR(WEST)
-CPY(NEWS,RAM[NE1])
-BDR(NORTH) # Need the correct northern border for the shift
-SET(NEWS)
-BDR(SOUTH) # Need the correct southern border
 CPY(NEWS,RAM[SE1])
 CPY(RAM[SE_N1],NORTH)
 CPY(RAM[SE_S1],SOUTH)
 BDR(SOUTH)
-SET(NEWS)
-BDR(NORTH) # Restore northern border
 CPY(NEWS,RAM[NE1])
 CPY(RAM[MY_E1],EAST)
 CPY(RAM[MY_W1],WEST)
@@ -529,22 +478,14 @@ CPY(NEWS,RAM[MY_S1])
 CPY(RAM[MY_SE1],EAST)
 CPY(RAM[MY_SW1],WEST)
 # ----------------- PLANE 2 -----------------
-CPY(NEWS,RAM[SW2])
-BDR(SOUTH) # Need the correct southern border for the shift
 CPY(NEWS,RAM[NW2])
 CPY(RAM[NW_N2],NORTH)
 CPY(RAM[NW_S2],SOUTH)
 BDR(WEST)
-CPY(NEWS,RAM[NE2])
-BDR(NORTH) # Need the correct northern border for the shift
-SET(NEWS)
-BDR(SOUTH) # Need the correct southern border
 CPY(NEWS,RAM[SE2])
 CPY(RAM[SE_N2],NORTH)
 CPY(RAM[SE_S2],SOUTH)
 BDR(SOUTH)
-SET(NEWS)
-BDR(NORTH) # Restore northern border
 CPY(NEWS,RAM[NE2])
 CPY(RAM[MY_E2],EAST)
 CPY(RAM[MY_W2],WEST)
@@ -733,36 +674,26 @@ SUM(,Z) # Discard carry
 # END IF
 SET(FLAG)
 
-# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
-CPY(,RAM[G2L0])
-SUM(RAM[G1T0],RAM[G1T0])
-CPY(,RAM[G2L1])
-SUM(RAM[G1T1],RAM[G1T1])
-CPY(,RAM[G2L2])
-SUM(RAM[G1T2],RAM[G1T2])
-CPY(,RAM[G2L3])
-SUM(RAM[G1T3],RAM[G1T3])
-CPY(,RAM[G2L4])
-SUM(RAM[G1T4],RAM[G1T4])
-CLR()
-SUM(RAM[G1T5],Z)
+# Use ONLY G1
+CLR(RAM[G1T5])
 
-# IF (G1T >= 16)
-CPY(FLAG,RAM[G1T4])
-# G1T = G1T | 15
+# IF (G1T >= 32)
+CPY(FLAG,RAM[G1T5])
+# G1T = G1T | 31
 SET(RAM[G1T0])
 SET(RAM[G1T1])
 SET(RAM[G1T2])
 SET(RAM[G1T3])
+SET(RAM[G1T4])
 # END IF
 SET(FLAG)
 
-# Save G1T/2 out
-CPY(NEWS,RAM[G1T3])
+# Save G1T/4 out
+CPY(NEWS,RAM[G1T4])
 SAVE(IMG_NE2,2)
-CPY(NEWS,RAM[G1T2])
+CPY(NEWS,RAM[G1T3])
 SAVE(IMG_NE1,2)
-CPY(NEWS,RAM[G1T1])
+CPY(NEWS,RAM[G1T2])
 SAVE(IMG_NE0,2)
 
 ########################## SW ##########################
@@ -1020,19 +951,8 @@ SUM(,Z) # Discard carry
 # END IF
 SET(FLAG)
 
-# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
-CPY(,RAM[G2L0])
-SUM(RAM[G1T0],RAM[G1T0])
-CPY(,RAM[G2L1])
-SUM(RAM[G1T1],RAM[G1T1])
-CPY(,RAM[G2L2])
-SUM(RAM[G1T2],RAM[G1T2])
-CPY(,RAM[G2L3])
-SUM(RAM[G1T3],RAM[G1T3])
-CPY(,RAM[G2L4])
-SUM(RAM[G1T4],RAM[G1T4])
-CLR()
-SUM(RAM[G1T5],Z)
+# Use ONLY G1
+CLR(RAM[G1T5])
 
 # IF (G1T >= 16)
 CPY(,RAM[G1T5])
@@ -1308,19 +1228,8 @@ SUM(,Z) # Discard carry
 # END IF
 SET(FLAG)
 
-# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
-CPY(,RAM[G2L0])
-SUM(RAM[G1T0],RAM[G1T0])
-CPY(,RAM[G2L1])
-SUM(RAM[G1T1],RAM[G1T1])
-CPY(,RAM[G2L2])
-SUM(RAM[G1T2],RAM[G1T2])
-CPY(,RAM[G2L3])
-SUM(RAM[G1T3],RAM[G1T3])
-CPY(,RAM[G2L4])
-SUM(RAM[G1T4],RAM[G1T4])
-CLR()
-SUM(RAM[G1T5],Z)
+# Use ONLY G1
+CLR(RAM[G1T5])
 
 # IF (G1T >= 8)
 CPY(,RAM[G1T5])
