@@ -60,7 +60,7 @@ int load_png_rgba(unsigned int* image, FILE* file)
 	png_read_end(png_ptr,NULL);
 	png_destroy_read_struct(&png_ptr,&info_ptr,NULL);
 	
-	for (i = 0 ; i < HEIGHT; ++i)
+	for (i = 0; i < HEIGHT; ++i)
 	{
 		int j,k;
 		for (j = 0; j < WIDTH; ++j)

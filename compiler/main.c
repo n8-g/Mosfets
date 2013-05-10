@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#define PCLEN 12
+#define PCMASK ((1 << PCLEN)-1)
+
 enum token_t
 {
 	UNKNOWN = -1,
@@ -19,6 +22,10 @@ enum ctrl_t
 	LOAD = 0x1,
 	SAVE = 0x2,
 	BDR = 0x3,
+	LDREG = 0x4,
+	ADDREG = 0x5,
+	CPYREG = 0x6,
+	BNE = 0x7,
 	HALT = 0xF
 };
 
@@ -62,29 +69,35 @@ enum word_offset_t
 	INVOUT_OFF = 5,
 	GPREG_OFF = 6,
 	INSEL_OFF = 8,
-	ADDR_OFF = 11,
-	FLAG_OFF = 19,
-	RAM_OFF = 20,
-	NEWS_OFF = 21,
-	LOAD_RAMADDR_OFF = 0,
-	LOAD_IMGADDR_OFF = 8,
-	SAVE_IMGADDR_OFF = 8,
-	STRIDE_OFF = 16,
+	FLAG_OFF = 11,
+	RAM_OFF = 12,
+	NEWS_OFF = 13,
+	ADDR_OFF = 14,
+	LOAD_IMGADDR_OFF = 0,
+	SAVE_IMGADDR_OFF = 0,
+	STRIDE_OFF = 8,
 	BDR_OFF = 0,
+	IMMEDIATE_OFF = 0,
+	OFFSET_OFF = 8,
+	SRCREG_OFF = 25,
+	DSTREG_OFF = 22,
 	CTRL_OFF = 28
 };
 
 typedef struct symbol
 {
-	int addr;
+	int val;
 	char name[32];
 } symbol_t;
 
 static int lineno;
 static char* filename;
 static char* lexer_ptr;
-static symbol_t symbols[512];
-static int nsymbols;
+static symbol_t constants[512];
+static symbol_t labels[512];
+static int nconstants;
+static int nlabels;
+static int loc;
 
 int print_usage(char* filename)
 {
@@ -108,11 +121,18 @@ int next_token(int* value, char* buffer)
 	while (isspace(*lexer_ptr)) ++lexer_ptr;
 	if (*lexer_ptr == '\0')
 		return NONE;
-	if (isdigit(*lexer_ptr))
+	if (isdigit(*lexer_ptr) || *lexer_ptr == '-')
 	{
-		int v = strtoul(lexer_ptr,&lexer_ptr,0);
+		char* ptr;
+		int v = strtol(lexer_ptr,&ptr,0);
 		if (value)
 			*value = v;
+		if (buffer)
+		{
+			strncpy(buffer,lexer_ptr,ptr-lexer_ptr);
+			buffer[ptr-lexer_ptr] = '\0';
+		}
+		lexer_ptr = ptr;
 		return INT;
 	}
 	if (isalpha(*lexer_ptr) || *lexer_ptr == '_')
@@ -146,40 +166,97 @@ void write_instr(FILE* out, unsigned int instr)
 	fputc((instr>>8)&0xFF,out);
 	fputc((instr>>16)&0xFF,out);
 	fputc((instr>>24)&0xFF,out);
+	++loc;
 }
 
-int lookup_symbol(int* addr, const char* name)
+int lookup_symbol(const symbol_t* symbols, int nsymbols, int* val, const char* name, const char* type)
 {
 	int i;
 	for (i = 0; i < nsymbols; ++i)
 		if (!strcmp(symbols[i].name,name))
 		{
-			*addr = symbols[i].addr;
+			*val = symbols[i].val;
 			return 0;
 		}
-	return error("Undefined symbol: '%s'",name);
+	return error("Undefined %s: '%s'",type,name);
+}
+
+int parse_number(char* lex, int* val)
+{
+	*val = 0;
+	do {
+		int v;
+		if (next_token(&v,lex) != INT && lookup_symbol(constants,nconstants,&v,lex,"constant"))
+			return -1;
+		next_token(NULL,lex);
+		*val += v;
+	} while (*lex == '+');
+	return 0;
+}
+
+int parse_addr(char* lex, int* val, int* reg)
+{
+	int v = 0;
+	*reg = 0;
+	*val = 0;
+	switch (next_token(val,lex))
+	{
+	case INT:
+		break;
+	case PUNC:
+		if (*lex == '$')
+		{
+			if (next_token(reg,lex) != INT || *reg > 7)
+				return error("Invalid register!");
+		}
+		else return error("Expected: register or constant");
+		break;
+	case WORD:
+		if (lookup_symbol(constants,nconstants,val,lex,"constant"))
+			return -1;
+		break;
+	}
+	next_token(NULL,lex);
+	if (*lex == '+')
+		return parse_number(lex,val);
+	return 0;
 }
 
 int parse_instr(FILE* out)
 {
 	unsigned int instr = 0;
 	int ctrl = NORMAL;
-	int val;
-	int ramaddr = -1, imgaddr, stride;
+	int val, offset;
+	int ramaddr = -1, imgaddr, stride, reg = -1;
 	char lex[32];
 	if (next_token(NULL,lex) == NONE)
 		return 0;
 	if (!strcmp(lex,".")) // Definitions
 	{
 		next_token(NULL,lex);
-		if (!strcmp(lex,"ADDR"))
+		if (!strcmp(lex,"CONST"))
 		{
 			next_token(NULL,lex);
-			strcpy(symbols[nsymbols].name,lex);
-			next_token(&symbols[nsymbols].addr,lex);
-			++nsymbols;
+			strcpy(constants[nconstants].name,lex);
+			do {
+				if (next_token(&val,lex) != INT && lookup_symbol(constants,nconstants,&stride,lex,"constant"))
+					return -1;
+				constants[nconstants].val += val;
+			} while (next_token(NULL,lex) == PUNC && *lex == '+');
+			++nconstants;
 		}
 		return 0; // Stop processing
+	}
+	if (!strcmp(lex,":")) // Label
+	{
+		int i;
+		next_token(NULL,lex);
+		for (i = 0; i < nlabels && strcmp(labels[i].name,lex); ++i);
+		strcpy(labels[i].name,lex);
+		labels[i].val = loc;
+		if (i == nlabels)
+			++nlabels;
+		return 0;
 	}
 	if (!strcmp(lex,"LOAD"))
 		ctrl = LOAD;
@@ -187,6 +264,14 @@ int parse_instr(FILE* out)
 		ctrl = SAVE;
 	else if (!strcmp(lex,"BDR"))
 		ctrl = BDR;
+	else if (!strcmp(lex,"BNE"))
+		ctrl = BNE;
+	else if (!strcmp(lex,"ADDREG"))
+		ctrl = ADDREG;
+	else if (!strcmp(lex,"LDREG"))
+		ctrl = LDREG;
+	else if (!strcmp(lex,"CPYREG"))
+		ctrl = CPYREG;
 	else if (!strcmp(lex,"CPY"))
 		instr |= OP_CPY << ALU_OFF; // No change really, but for consistency sake
 	else if (!strcmp(lex,"AND"))
@@ -236,33 +321,31 @@ int parse_instr(FILE* out)
 		if (expect("RAM",lex)) return -1;
 		next_token(NULL,lex);
 		if (expect("[",lex)) return -1;
-		if (next_token(&ramaddr,lex) != INT && lookup_symbol(&ramaddr,lex))
+		if (parse_addr(lex,&ramaddr,&reg))
 			return -1;
-		next_token(NULL,lex);
+		instr |= ((reg & 0x7) << SRCREG_OFF);
+		instr |= ((ramaddr & 0xFF) << ADDR_OFF);
 		if (expect("]",lex)) return -1;
-		instr |= ((ramaddr & 0xFF) << LOAD_RAMADDR_OFF);
 		next_token(NULL,lex);
 		if (expect(",",lex)) return -1;
-		if (next_token(&imgaddr,lex) != INT && lookup_symbol(&imgaddr,lex))
+		if (parse_addr(lex,&imgaddr,&reg))
 			return -1;
+		instr |= ((reg & 0x7) << DSTREG_OFF);
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
-		next_token(NULL,lex);
 		if (expect(",",lex)) return -1;
-		if (next_token(&stride,lex) != INT)
-			return error("Expected: stride");
-		instr |= ((stride & 0xFF) << STRIDE_OFF);
-		next_token(NULL,lex);
+		if (parse_number(lex,&stride))
+			return -1;
+		instr |= ((stride & 0xF) << STRIDE_OFF);
 		break;
 	case SAVE:
-		if (next_token(&imgaddr,lex) != INT && lookup_symbol(&imgaddr,lex))
+		if (parse_addr(lex,&imgaddr,&reg))
 			return -1;
+		instr |= ((reg & 0x7) << DSTREG_OFF);
 		instr |= ((imgaddr & 0xFF) << LOAD_IMGADDR_OFF);
-		next_token(NULL,lex);
 		if (expect(",",lex)) return -1;
-		if (next_token(&stride,lex) != INT)
-			return error("Expected: stride");
-		instr |= ((stride & 0xFF) << STRIDE_OFF);
-		next_token(NULL,lex);
+		if (parse_number(lex,&stride))
+			return -1;
+		instr |= ((stride & 0xF) << STRIDE_OFF);
 		break;
 	case BDR:
 		if (next_token(NULL,lex) != WORD)
@@ -279,17 +362,85 @@ int parse_instr(FILE* out)
 			return error("Invalid direction");
 		next_token(NULL,lex);
 		break;
+	case BNE:
+		next_token(NULL,lex);
+		if (*lex != '$')
+			return error("Expected: register");
+		if (next_token(&reg,lex) != INT || reg > 7)
+			return error("Invalid register");
+		if (next_token(NULL,lex) != PUNC || expect(",",lex)) return -1;
+		if (parse_number(lex,&val))
+			return -1;
+		if (expect(",",lex)) return -1;
+		if (next_token(&offset,lex) != INT)
+		{
+			int labelloc;
+			if (*lex == ':')
+			{
+				next_token(NULL,lex);
+				if (lookup_symbol(labels,nlabels,&labelloc,lex,"label"))
+					return -1;
+			}
+			else return error("Expected: Label or offset");
+			offset = labelloc-loc;
+		}
+		instr |= (val & 0xFF) << IMMEDIATE_OFF;
+		instr |= (offset & PCMASK) << OFFSET_OFF;
+		instr |= (reg & 0x7) << SRCREG_OFF;
+		next_token(NULL,lex);
+		break;
+	case LDREG:
+		next_token(NULL,lex);
+		if (*lex != '$')
+			return error("Expected: register");
+		if (next_token(&reg,lex) != INT || reg > 7)
+			return error("Invalid register");
+		if (next_token(NULL,lex) != PUNC || expect(",",lex)) return -1;
+		if (parse_number(lex,&val))
+			return -1;
+		instr |= (val & 0xFF) << IMMEDIATE_OFF;
+		instr |= (reg & 0x7) << DSTREG_OFF;
+		break;
+	case CPYREG:
+		next_token(NULL,lex);
+		if (*lex != '$')
+			return error("Expected: register");
+		if (next_token(&reg,lex) != INT || reg > 7)
+			return error("Invalid register");
+		if (next_token(NULL,lex) != PUNC || expect(",",lex)) return -1;
+		next_token(NULL,lex);
+		if (*lex != '$')
+			return error("Expected: register");
+		if (next_token(&val,lex) != INT || reg > 7)
+			return error("Invalid register");
+		instr |= (val & 0x7) << SRCREG_OFF;
+		instr |= (reg & 0x7) << DSTREG_OFF;
+		next_token(NULL,lex);
+		break;
+	case ADDREG:
+		next_token(NULL,lex);
+		if (*lex != '$')
+			return error("Expected: register");
+		if (next_token(&reg,lex) != INT || reg > 7)
+			return error("Invalid register");
+		if (next_token(NULL,lex) != PUNC || expect(",",lex)) return -1;
+		if (parse_number(lex,&val))
+			return -1;
+		instr |= (val & 0xFF) << IMMEDIATE_OFF;
+		instr |= (reg & 0x7) << DSTREG_OFF;
+		break;
 	case NORMAL:
 		while (next_token(NULL,lex) == WORD)
 		{
 			if (!strcmp(lex,"RAM"))
 			{
 				if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
-				if (next_token(&ramaddr,lex) != INT && lookup_symbol(&ramaddr,lex))
+				if (parse_addr(lex,&ramaddr,&reg))
 					return -1;
+				instr |= ((reg & 0x7) << SRCREG_OFF);
 				instr |= 1 << RAM_OFF;
 				instr |= ((ramaddr & 0xFF) << ADDR_OFF);
-				if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
+				if (expect("]",lex)) return -1;
 			}
 			else if (!strcmp(lex,"FLAG")) // Flag assignment
 				instr |= 1 << FLAG_OFF;
@@ -301,6 +452,9 @@ int parse_instr(FILE* out)
 				instr |= 2 << GPREG_OFF;
 			else if (!strcmp(lex,"Z"))
 				instr |= 3 << GPREG_OFF;
+			else if (!strcmp(lex,"ACC"))
+			{
+			}
 			else
 				return error("Unknown destination: '%s'",lex);
 		}
@@ -323,14 +477,16 @@ int parse_instr(FILE* out)
 				instr |= (IN_Z << INSEL_OFF);
 			else if (!strcmp(lex,"RAM"))
 			{
+				int reg2;
 				if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
-				if (next_token(&val,lex) != INT && lookup_symbol(&val,lex))
+				if (parse_addr(lex,&val,&reg2))
 					return -1;
-				if (ramaddr != -1 && ramaddr != val)
+				if ((ramaddr != -1 && ramaddr != val) || (reg != -1 && reg != reg2))
 					return error("Cannot access different RAM addresses in one instruction");
 				instr |= (IN_RAM << INSEL_OFF);
+				instr |= ((reg2 & 0x7) << SRCREG_OFF);
 				instr |= ((val & 0xFF) << ADDR_OFF);
-				if (next_token(NULL,lex) != PUNC || expect("]",lex)) return -1;
+				if (expect("]",lex)) return -1;
 			}
 			else
 				return error("Unknown operand: '%s'",lex);
