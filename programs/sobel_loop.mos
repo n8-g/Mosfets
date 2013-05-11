@@ -40,15 +40,17 @@ CLR(Z)
 
 # First row is a dummy row
 LDREG($1, 0)
-SET(RAM[$1+IMG])
-ADDREG($1, 1)
-BNE($1, NBR_S, -2)
+:Loop
+	SET(RAM[$1+IMG])
+	ADDREG($1, 1)
+	BNE($1, NBR_S, :Loop)
 
 LDREG($5, 0) # Row source address
-LDREG($2, 0) # Depth counter
+LDREG($2, DEPTH) # Depth counter
 :LoadDepth
+	ADDREG($2, -1)
 	CPYREG($1, $2)
-	ADDREG($1, NBR_S) # Starting point = IMG + NBR_S + DEPTH
+	ADDREG($1, NBR_S) # Starting point = IMG + NBR_S + depth
 	LDREG($7, 0) # Row counter
 	:LoadRow
 		SET(RAM[$1+IMG]) # First column is a dummy column
@@ -68,9 +70,7 @@ LDREG($2, 0) # Depth counter
 		ADDREG($5, 0x20)
 		ADDREG($7, 1)
 		BNE($7, HEIGHT, :LoadRow)
-
-	ADDREG($2, 1)
-	BNE($2, DEPTH, :LoadDepth)
+	BNE($2, 0, :LoadDepth)
 
 # Last row is a dummy row
 LDREG($2, 0)
@@ -142,39 +142,43 @@ ADDREG($1, NBR_S) # Offset to first real row
 		# ======================== G1 ===========================
 		# G1T = NE + NW
 		LDREG($0, 0)
-		CPY(, RAM[MY_NE]) 
-		SUM(X, RAM[MY_NW]) # Add east and west together
-		CPY(RAM[G1T], X)
-		ADDREG($0, 1)
-		BNE($0, DEPTH, -4)
+		:Loop
+			CPY(, RAM[MY_NE]) 
+			SUM(X, RAM[MY_NW]) # Add east and west together
+			CPY(RAM[G1T], X)
+			ADDREG($0, 1)
+			BNE($0, DEPTH, :Loop)
 		CLR()
 		SUM(RAM[G1T], Z)
 
 		# G1T = G1T + N*2
 		LDREG($0, 0)
-		CPY(, RAM[MY_N])
-		SUM(RAM[G1T+1], RAM[G1T+1])
-		ADDREG($0, 1)
-		BNE($0, DEPTH, -3)
+		:Loop
+			CPY(, RAM[MY_N])
+			SUM(RAM[G1T+1], RAM[G1T+1])
+			ADDREG($0, 1)
+			BNE($0, DEPTH, :Loop)
 		CLR()
 		SUM(RAM[G1T+1], Z)
 
 		# G1B = SE + SW
 		LDREG($0, 0)
-		CPY(, RAM[MY_SE]) 
-		SUM(X, RAM[MY_SW]) # Add east and west together
-		CPY(RAM[G1B], X)
-		ADDREG($0, 1)
-		BNE($0,DEPTH,-4)
+		:Loop
+			CPY(, RAM[MY_SE]) 
+			SUM(X, RAM[MY_SW]) # Add east and west together
+			CPY(RAM[G1B], X)
+			ADDREG($0, 1)
+			BNE($0,DEPTH,:Loop)
 		CLR()
 		SUM(RAM[G1B], Z)
 
 		# G1B = G1B + S*2
 		LDREG($0,0)
-		CPY(, RAM[MY_S])
-		SUM(RAM[G1B+1], RAM[G1B+1])
-		ADDREG($0, 1)
-		BNE($0,DEPTH,-4)
+		:Loop
+			CPY(, RAM[MY_S])
+			SUM(RAM[G1B+1], RAM[G1B+1])
+			ADDREG($0, 1)
+			BNE($0,DEPTH,:Loop)
 		CLR()
 		SUM(RAM[G1B+1], Z)
 
@@ -182,10 +186,11 @@ ADDREG($1, NBR_S) # Offset to first real row
 		LDREG($0,0)
 		SET() # Set accumulator
 		SUM(, Y) # Add 1 to generate carry which we'll use for 2's complement
-		CPY.INV(, RAM[G1B])
-		SUM(RAM[G1T], RAM[G1T])
-		ADDREG($0,1)
-		BNE($0,DEPTH+2,-3)
+		:Loop
+			CPY.INV(, RAM[G1B])
+			SUM(RAM[G1T], RAM[G1T])
+			ADDREG($0,1)
+			BNE($0,DEPTH+2,:Loop)
 
 		# IF (G1T < 0)
 		CLR()
@@ -193,10 +198,11 @@ ADDREG($1, NBR_S) # Offset to first real row
 
 		# G1T = -G1T
 		LDREG($0,0)
-		CPY.INV(, RAM[G1T])
-		SUM(RAM[G1T], Y)
-		ADDREG($0,1)
-		BNE($0,DEPTH+2,-3)
+		:Loop
+			CPY.INV(, RAM[G1T])
+			SUM(RAM[G1T], Y)
+			ADDREG($0,1)
+			BNE($0,DEPTH+2,:Loop)
 		CLR()
 		SUM(, Z) # Discard carry
 
@@ -206,39 +212,43 @@ ADDREG($1, NBR_S) # Offset to first real row
 		# ======================== G2 ===========================
 		# G2L = NW + SW
 		LDREG($0, 0)
-		CPY(, RAM[MY_NW]) 
-		SUM(X, RAM[MY_SW]) # Add east and west together
-		CPY(RAM[G2L], X)
-		ADDREG($0, 1)
-		BNE($0, DEPTH, -4)
+		:Loop
+			CPY(, RAM[MY_NW]) 
+			SUM(X, RAM[MY_SW]) # Add east and west together
+			CPY(RAM[G2L], X)
+			ADDREG($0, 1)
+			BNE($0, DEPTH, :Loop)
 		CLR()
 		SUM(RAM[G2L], Z)
 
 		# G2L = G2L + W*2
 		LDREG($0, 0)
-		CPY(, RAM[MY_W])
-		SUM(RAM[G2L+1], RAM[G2L+1])
-		ADDREG($0, 1)
-		BNE($0, DEPTH, -3)
+		:Loop
+			CPY(, RAM[MY_W])
+			SUM(RAM[G2L+1], RAM[G2L+1])
+			ADDREG($0, 1)
+			BNE($0, DEPTH, :Loop)
 		CLR()
 		SUM(RAM[G2L+1], Z)
 
 		# G2R = NE + SE
 		LDREG($0, 0)
-		CPY(, RAM[MY_NE]) 
-		SUM(X, RAM[MY_SE]) # Add east and west together
-		CPY(RAM[G2R], X)
-		ADDREG($0, 1)
-		BNE($0,DEPTH,-4)
+		:Loop
+			CPY(, RAM[MY_NE]) 
+			SUM(X, RAM[MY_SE]) # Add east and west together
+			CPY(RAM[G2R], X)
+			ADDREG($0, 1)
+			BNE($0,DEPTH,:Loop)
 		CLR()
 		SUM(RAM[G2R], Z)
 
 		# G2R = G2R + E*2
 		LDREG($0,0)
-		CPY(, RAM[MY_E])
-		SUM(RAM[G2R+1], RAM[G2R+1])
-		ADDREG($0, 1)
-		BNE($0,DEPTH,-4)
+		:Loop
+			CPY(, RAM[MY_E])
+			SUM(RAM[G2R+1], RAM[G2R+1])
+			ADDREG($0, 1)
+			BNE($0,DEPTH,:Loop)
 		CLR()
 		SUM(RAM[G2R+1], Z)
 
@@ -246,10 +256,11 @@ ADDREG($1, NBR_S) # Offset to first real row
 		LDREG($0,0)
 		SET() # Set accumulator
 		SUM(, Y) # Add 1 to generate carry which we'll use for 2's complement
-		CPY.INV(, RAM[G2R])
-		SUM(RAM[G2L], RAM[G2L])
-		ADDREG($0,1)
-		BNE($0,DEPTH+2,-3)
+		:Loop
+			CPY.INV(, RAM[G2R])
+			SUM(RAM[G2L], RAM[G2L])
+			ADDREG($0,1)
+			BNE($0,DEPTH+2,:Loop)
 
 		# IF (G2L < 0)
 		CLR()
@@ -257,10 +268,11 @@ ADDREG($1, NBR_S) # Offset to first real row
 
 		# G2L = -G2L
 		LDREG($0,0)
-		CPY.INV(, RAM[G2L])
-		SUM(RAM[G2L], Y)
-		ADDREG($0,1)
-		BNE($0,DEPTH+2,-3)
+		:Loop
+			CPY.INV(, RAM[G2L])
+			SUM(RAM[G2L], Y)
+			ADDREG($0,1)
+			BNE($0,DEPTH+2,:Loop)
 		CLR()
 		SUM(, Z) # Discard carry
 
@@ -269,32 +281,34 @@ ADDREG($1, NBR_S) # Offset to first real row
 
 		# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
 		LDREG($0,0)
-		CPY(, RAM[G2L])
-		SUM(RAM[G1T], RAM[G1T])
-		ADDREG($0,1)
-		BNE($0,DEPTH+2,-3)
+		:Loop
+			CPY(, RAM[G2L])
+			SUM(RAM[G1T], RAM[G1T])
+			ADDREG($0,1)
+			BNE($0,DEPTH+2,:Loop)
 		CLR()
 		SUM(RAM[G1T], Z)
 
 		# IF (G1T >= 16)
-		LDREG($0,DEPTH+1)
-		CPY(FLAG, RAM[G1T])
-		# G1T = G1T | 15
 		LDREG($0,0)
-		SET(RAM[G1T])
-		ADDREG($0,1)
-		BNE($0,DEPTH+1,-2)
+		CPY(FLAG, RAM[G1T+DEPTH+1])
+		# G1T = G1T | 15
+		:Loop
+			SET(RAM[G1T])
+			ADDREG($0,1)
+			BNE($0,DEPTH+1,:Loop)
 		# END IF
 		SET(FLAG)
 
 		# Save G1T/2 out
 		CPYREG($2,$4)
 		LDREG($0,DEPTH)
-		ADDREG($0,-1)
-		CPY(NEWS, RAM[G1T])
-		SAVE($2,WIDTH)
-		ADDREG($2,0x40)
-		BNE($0,0,-4)
+		:Loop
+			ADDREG($0,-1)
+			CPY(NEWS, RAM[G1T])
+			SAVE($2,WIDTH)
+			ADDREG($2,0x40)
+			BNE($0,0,:Loop)
 		
 		ADDREG($4, 1)
 		ADDREG($1, NBR_E) # Next element
