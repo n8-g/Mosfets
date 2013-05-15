@@ -264,7 +264,6 @@ int parse_instr(FILE* out)
 			strcpy(constants[nconstants].name,lex);
 			if (parse_number(lex,&constants[nconstants].val))
 				return -1;
-			printf("CONST %s = @%d\n",constants[nconstants].name,constants[nconstants].val);
 			
 			++nconstants;
 		}
@@ -278,7 +277,6 @@ int parse_instr(FILE* out)
 			next_token(NULL,lex);
 			strcpy(constants[nconstants].name,lex);
 			constants[nconstants].val = nextaddr;
-			printf("%s@%d\n",constants[nconstants].name,constants[nconstants].val);
 			++nconstants;
 			nextaddr += width;
 		}
