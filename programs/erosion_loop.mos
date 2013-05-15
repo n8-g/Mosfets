@@ -1,34 +1,35 @@
-# Store all 8 neighbors
-.CONST MY_N 0x20
-.CONST MY_NE 0x23
-.CONST MY_E 0x26
-.CONST MY_SE 0x29
-.CONST MY_S 0x2C
-.CONST MY_SW 0x2F
-.CONST MY_W 0x32
-.CONST MY_NW 0x35
-
-.CONST E_N 0x40
-.CONST E_S 0x44
-.CONST W_N 0x48
-.CONST W_S 0x4C
-
 .CONST COLUMNS 2
 .CONST ROWS 2
-.CONST DEPTH 1
-.CONST IMG 0x80
 .CONST ROW_WIDTH 2+COLUMNS # include dummy elements
 .CONST ROW_HEIGHT 16*COLUMNS
 .CONST PLANE_HEIGHT ROW_HEIGHT*ROWS
+.CONST DEPTH 1
 
 .CONST NBR_N DEPTH*(0-ROW_WIDTH)
 .CONST NBR_NE DEPTH*(1-ROW_WIDTH)
-.CONST NBR_E DEPTH*1
+.CONST NBR_E DEPTH*(1)
 .CONST NBR_SE DEPTH*(1+ROW_WIDTH)
 .CONST NBR_S DEPTH*(ROW_WIDTH)
 .CONST NBR_SW DEPTH*(ROW_WIDTH-1)
-.CONST NBR_W DEPTH*-1
-.CONST NBR_NW DEPTH*-ROW_WIDTH
+.CONST NBR_W DEPTH*(-1)
+.CONST NBR_NW DEPTH*(-ROW_WIDTH-1)
+.VAR[ROW_WIDTH*(ROWS+2)] IMG
+
+# Store all 8 neighbors
+.VAR[1] MY_N
+.VAR[1] MY_NE
+.VAR[1] MY_E
+.VAR[1] MY_SE
+.VAR[1] MY_S
+.VAR[1] MY_SW
+.VAR[1] MY_W
+.VAR[1] MY_NW
+.VAR[1] ME
+
+.VAR[1] E_N
+.VAR[1] E_S
+.VAR[1] W_N
+.VAR[1] W_S
 
 # This is our default offset, and should only be changed when doing summation!
 LDREG($0,0)
@@ -41,37 +42,32 @@ LDREG($1, 0)
 	BNE($1, NBR_S - 1, :Loop)
 
 LDREG($5, 0) # Row source address
-LDREG($2, DEPTH) # Depth counter
-:LoadDepth
-	ADDREG($2, -1)
-	CPYREG($1, $2)
-	ADDREG($1, NBR_S) # Starting point = IMG + NBR_S + depth
-	LDREG($7, 0) # Row counter
-	:LoadRow
-		SET(RAM[$1+IMG]) # First column is a dummy column
-		ADDREG($1, NBR_E)
+LDREG($1, IMG+NBR_S) # Starting point = IMG + NBR_S
+LDREG($7, 0) # Row counter
+:LoadRow
+	SET(RAM[$1+IMG]) # First column is a dummy column
+	ADDREG($1, NBR_E)
 
-		LDREG($6, 0) # Col counter
-		CPYREG($4, $5) # Piece source address
-		:LoadCol
-			LOAD(RAM[$1+IMG], $4+0, COLUMNS)
-			ADDREG($1, NBR_E)
-			ADDREG($6, 1)
-			ADDREG($4, 1)
-			BNE($6, COLUMNS, :LoadCol)
-
-		SET(RAM[$1+IMG]) # Last column is a dummy column
+	LDREG($6, 0) # Col counter
+	CPYREG($4, $5) # Piece source address
+	:LoadCol
+		LOAD(RAM[$1+0], $4+0, COLUMNS)
 		ADDREG($1, NBR_E)
-		ADDREG($7, 1)
-		ADDREG($5, ROW_HEIGHT)
-		BNE($7, ROWS, :LoadRow)
-	BNE($2, 0, :LoadDepth)
+		ADDREG($6, 1)
+		ADDREG($4, 1)
+		BNE($6, COLUMNS, :LoadCol)
+
+	SET(RAM[$1+0]) # Last column is a dummy column
+	ADDREG($1, NBR_E)
+	ADDREG($7, 1)
+	ADDREG($5, ROW_HEIGHT)
+	BNE($7, ROWS, :LoadRow)
 	
 
 # Last row is a dummy row
 LDREG($2, 0)
 :Loop
-	SET(RAM[$1+IMG])
+	SET(RAM[$1+0])
 	ADDREG($2, 1)
 	ADDREG($1, 1)
 	BNE($2, NBR_S, :Loop)
@@ -85,55 +81,49 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 	CPYREG($4,$5) # Set destination to start of row
 	ADDREG($1, NBR_E) # Skip west dummy
 	:DoCol
-		LDREG($0, DEPTH)
-		:LoadPlane
-			ADDREG($0, -1)
-			CPY(NEWS, RAM[$1+NBR_NW])
-			BDR(NORTH)
-			CPY(NEWS, RAM[$1+NBR_SW])
-			BDR(SOUTH) # Need the correct southern border for the shift
-			CPY(NEWS, RAM[$1+NBR_W])
-			CPY(RAM[W_N], NORTH)
-			CPY(RAM[W_S], SOUTH)
-			BDR(WEST)
-			CPY(NEWS, RAM[$1+NBR_NE])
-			BDR(NORTH)
-			CPY(NEWS, RAM[$1+NBR_SE])
-			BDR(SOUTH) # Need the correct southern border for the shift
-			CPY(NEWS, RAM[$1+NBR_E])
-			CPY(RAM[E_N], NORTH)
-			CPY(RAM[E_S], SOUTH)
-			BDR(EAST)
-			CPY(NEWS, RAM[$1+NBR_N])
-			BDR(NORTH)
-			CPY(NEWS, RAM[$1+NBR_S])
-			BDR(SOUTH)
-			CPY(NEWS, RAM[$1+0])
-			CPY(RAM[MY_E], EAST)
-			CPY(RAM[MY_W], WEST)
-			CPY(RAM[MY_N], NORTH)
-			CPY(RAM[MY_S], SOUTH)
+		CPY(NEWS, RAM[$1+NBR_NW])
+		BDR(NORTH)
+		CPY(NEWS, RAM[$1+NBR_SW])
+		BDR(SOUTH) # Need the correct southern border for the shift
+		CPY(NEWS, RAM[$1+NBR_W])
+		CPY(RAM[W_N], NORTH)
+		CPY(RAM[W_S], SOUTH)
+		BDR(WEST)
+		CPY(NEWS, RAM[$1+NBR_NE])
+		BDR(NORTH)
+		CPY(NEWS, RAM[$1+NBR_SE])
+		BDR(SOUTH) # Need the correct southern border for the shift
+		CPY(NEWS, RAM[$1+NBR_E])
+		CPY(RAM[E_N], NORTH)
+		CPY(RAM[E_S], SOUTH)
+		BDR(EAST)
+		CPY(NEWS, RAM[$1+NBR_N])
+		BDR(NORTH)
+		CPY(NEWS, RAM[$1+NBR_S])
+		BDR(SOUTH)
+		CPY(NEWS, RAM[$1+0])
+		CPY(RAM[MY_E], EAST)
+		CPY(RAM[MY_W], WEST)
+		CPY(RAM[MY_N], NORTH)
+		CPY(RAM[MY_S], SOUTH)
 
-			# Shift down
-			CPY(NEWS, RAM[E_N])
-			BDR(EAST)
-			CPY(NEWS, RAM[W_N])
-			BDR(WEST)
-			CPY(NEWS, RAM[MY_N])
-			CPY(RAM[MY_NE], EAST)
-			CPY(RAM[MY_NW], WEST)
+		# Shift down
+		CPY(NEWS, RAM[E_N])
+		BDR(EAST)
+		CPY(NEWS, RAM[W_N])
+		BDR(WEST)
+		CPY(NEWS, RAM[MY_N])
+		CPY(RAM[MY_NE], EAST)
+		CPY(RAM[MY_NW], WEST)
 
-			# Shift up
-			CPY(NEWS, RAM[E_S])
-			BDR(EAST)
-			CPY(NEWS, RAM[W_S])
-			BDR(WEST)
-			CPY(NEWS, RAM[MY_S])
-			CPY(RAM[MY_SE], EAST)
-			CPY(RAM[MY_SW], WEST)
-
-			ADDREG($1, 1) # Next depth
-			BNE($0, 0, :LoadPlane) 
+		# Shift up
+		CPY(NEWS, RAM[E_S])
+		BDR(EAST)
+		CPY(NEWS, RAM[W_S])
+		BDR(WEST)
+		CPY(NEWS, RAM[MY_S])
+		CPY(RAM[MY_SE], EAST)
+		CPY(RAM[MY_SW], WEST)
 			
 		CPY(X NEWS FLAG,RAM[$1+0]) # White pixels only
 		CPY(,RAM[MY_NW])

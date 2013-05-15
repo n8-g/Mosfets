@@ -1,90 +1,82 @@
-.CONST G1T 0x00
-.CONST G1B 0x08
-
-.CONST G2L 0x10
-.CONST G2R 0x18
-
-# Store all 8 neighbors
-.CONST MY_N 0x20
-.CONST MY_NE 0x23
-.CONST MY_E 0x26
-.CONST MY_SE 0x29
-.CONST MY_S 0x2C
-.CONST MY_SW 0x2F
-.CONST MY_W 0x32
-.CONST MY_NW 0x35
-
-.CONST E_N 0x40
-.CONST E_S 0x41
-.CONST W_N 0x42
-.CONST W_S 0x43
-
 .CONST COLUMNS 2
 .CONST ROWS 2
-.CONST DEPTH 3
-.CONST IMG 0x80
+.CONST DEPTH 1
 .CONST ROW_WIDTH 2+COLUMNS # include dummy elements
 .CONST ROW_HEIGHT 16*COLUMNS
 .CONST PLANE_HEIGHT ROW_HEIGHT*ROWS
+.CONST IMG_SIZE DEPTH*ROW_WIDTH*(ROWS+2)
 
 .CONST NBR_N DEPTH*(0-ROW_WIDTH)
 .CONST NBR_NE DEPTH*(1-ROW_WIDTH)
-.CONST NBR_E DEPTH*1
+.CONST NBR_E DEPTH*(1)
 .CONST NBR_SE DEPTH*(1+ROW_WIDTH)
 .CONST NBR_S DEPTH*(ROW_WIDTH)
 .CONST NBR_SW DEPTH*(ROW_WIDTH-1)
-.CONST NBR_W DEPTH*-1
-.CONST NBR_NW DEPTH*-ROW_WIDTH
+.CONST NBR_W DEPTH*(-1)
+.CONST NBR_NW DEPTH*(-ROW_WIDTH-1)
+
+.CONST IMG 0x80
+
+# Store all 8 neighbors
+.VAR[DEPTH] MY_N
+.VAR[DEPTH] MY_NE
+.VAR[DEPTH] MY_E
+.VAR[DEPTH] MY_SE
+.VAR[DEPTH] MY_S
+.VAR[DEPTH] MY_SW
+.VAR[DEPTH] MY_W
+.VAR[DEPTH] MY_NW
+
+.VAR[DEPTH] E_N
+.VAR[DEPTH] E_S
+.VAR[DEPTH] W_N
+.VAR[DEPTH] W_S
+
+
+.VAR[DEPTH+3] G1T
+.VAR[DEPTH+3] G1B
+
+.VAR[DEPTH+3] G2L
+.VAR[DEPTH+3] G2R
+
 
 # For two's complement,  we need to add 001
 SET(Y)
 CLR(Z)
 
-# This is our default offset, and should only be changed when doing summation!
 LDREG($0,0)
 
-# First row is a dummy row
-LDREG($1, 0)
+# Set all 1's in image
+LDREG($1, IMG)
 :Loop
-	SET(RAM[$1+IMG])
-	ADDREG($1, 1) # Branch delay
-	BNE($1, NBR_S - 1, :Loop)
+	SET(RAM[$1])
+	ADDREG($1, 1)
+	BNE($1, IMG + IMG_SIZE, :Loop)
 
 LDREG($5, 0) # Row source address
 LDREG($2, DEPTH) # Depth counter
 :LoadDepth
 	ADDREG($2, -1)
 	CPYREG($1, $2)
-	ADDREG($1, NBR_S) # Starting point = IMG + NBR_S + depth
+	ADDREG($1, IMG+NBR_S) # Starting point = IMG + NBR_S + depth
 	LDREG($7, 0) # Row counter
 	:LoadRow
-		SET(RAM[$1+IMG]) # First column is a dummy column
-		ADDREG($1, NBR_E)
+		ADDREG($1, NBR_E) # Skip west dummy column
 
 		LDREG($6, 0) # Col counter
 		CPYREG($4, $5) # Piece source address
 		:LoadCol
-			LOAD(RAM[$1+IMG], $4+0, COLUMNS)
+			LOAD(RAM[$1+0], $4, COLUMNS)
 			ADDREG($1, NBR_E)
 			ADDREG($6, 1)
 			ADDREG($4, 1)
 			BNE($6, COLUMNS, :LoadCol)
 
-		SET(RAM[$1+IMG]) # Last column is a dummy column
-		ADDREG($1, NBR_E)
+		ADDREG($1, NBR_E) # Skip east dummy column
 		ADDREG($7, 1)
 		ADDREG($5, ROW_HEIGHT)
 		BNE($7, ROWS, :LoadRow)
 	BNE($2, 0, :LoadDepth)
-	
-
-# Last row is a dummy row
-LDREG($2, 0)
-:Loop
-	SET(RAM[$1+IMG])
-	ADDREG($2, 1)
-	ADDREG($1, 1)
-	BNE($2, NBR_S, :Loop)
 
 LDREG($7, ROWS) # Row counter
 LDREG($5, 0) # Row destination address
@@ -95,37 +87,37 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 	CPYREG($4,$5) # Set destination to start of row
 	ADDREG($1, NBR_E) # Skip west dummy
 	:DoCol
-		LDREG($2, DEPTH)
+		LDREG($0, DEPTH)
 		:LoadPlane
-			ADDREG($2, -1)
-			CPY(NEWS, RAM[$1+NBR_NW])
-			BDR(NORTH)
-			CPY(NEWS, RAM[$1+NBR_SW])
-			BDR(SOUTH) # Need the correct southern border for the shift
-			CPY(NEWS, RAM[$1+NBR_W])
-			CPY(RAM[W_N], NORTH)
+			ADDREG($0, -1) # Decrement depth
+			CPY(NEWS, RAM[$1+NBR_NW]) # Load NW neighbor into output register
+			BDR(NORTH) # Update border
+			CPY(NEWS, RAM[$1+NBR_SW]) # Load SW neighbor into output register
+			BDR(SOUTH) # Update border
+			CPY(NEWS, RAM[$1+NBR_W]) # Load W neighbor into output register
+			BDR(WEST) # Set the west border
+			CPY(RAM[W_N], NORTH) # Save its northern and southern neighbors
 			CPY(RAM[W_S], SOUTH)
-			BDR(WEST)
 			CPY(NEWS, RAM[$1+NBR_NE])
 			BDR(NORTH)
 			CPY(NEWS, RAM[$1+NBR_SE])
-			BDR(SOUTH) # Need the correct southern border for the shift
+			BDR(SOUTH)
 			CPY(NEWS, RAM[$1+NBR_E])
+			BDR(EAST)
 			CPY(RAM[E_N], NORTH)
 			CPY(RAM[E_S], SOUTH)
-			BDR(EAST)
 			CPY(NEWS, RAM[$1+NBR_N])
 			BDR(NORTH)
 			CPY(NEWS, RAM[$1+NBR_S])
 			BDR(SOUTH)
-			CPY(NEWS, RAM[$1+0])
-			CPY(RAM[$2+MY_E], EAST)
-			CPY(RAM[$2+MY_W], WEST)
-			CPY(RAM[$2+MY_N], NORTH)
-			CPY(RAM[$2+MY_S], SOUTH)
+			CPY(NEWS, RAM[$1+0]) # Load the piece into the output register
+			CPY(RAM[MY_E], EAST) # Read immediate neighbors
+			CPY(RAM[MY_W], WEST)
+			CPY(RAM[MY_N], NORTH)
+			CPY(RAM[MY_S], SOUTH)
 
 			# Shift down
-			CPY(NEWS, RAM[E_N])
+			CPY(NEWS, RAM[E_N]) 
 			BDR(EAST)
 			CPY(NEWS, RAM[W_N])
 			BDR(WEST)
@@ -133,7 +125,7 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 			CPY(RAM[MY_NE], EAST)
 			CPY(RAM[MY_NW], WEST)
 
-			# Shift down
+			# Shift up
 			CPY(NEWS, RAM[E_S])
 			BDR(EAST)
 			CPY(NEWS, RAM[W_S])
@@ -141,10 +133,21 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 			CPY(NEWS, RAM[MY_S])
 			CPY(RAM[MY_SE], EAST)
 			CPY(RAM[MY_SW], WEST)
+			
+			CPY(NEWS, RAM[$1+0]) # Load the piece into the output register (simply for debugging)
 
-			ADDREG($1, 1) # Next depth
-			BNE($2, 0, :LoadPlane) 
+			ADDREG($1, 1) # Next plane
+			BNE($0, 0, :LoadPlane) 
 
+		# Sanity check
+		LDREG($0, 0)
+		:Loop
+			CLR(RAM[G1T])
+			CLR(RAM[G1B])
+			CLR(RAM[G2L])
+			CLR(RAM[G2R])
+			ADDREG($0,1)
+			BNE($0,DEPTH+3, :Loop)
 		# ======================== G1 ===========================
 		# G1T = NE + NW
 		LDREG($0, 0)
@@ -204,9 +207,11 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 
 		# G1T = -G1T
 		LDREG($0,0)
+		SET() # Set accumulator
+		SUM(, Y) # Add 1 to generate carry which we'll use for 2's complement
 		:Loop
 			CPY.INV(, RAM[G1T])
-			SUM(RAM[G1T], Y)
+			SUM(RAM[G1T], Z)
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
 		CLR()
@@ -274,9 +279,11 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 
 		# G2L = -G2L
 		LDREG($0,0)
+		SET() # Set accumulator
+		SUM(, Y) # Add 1 to generate carry which we'll use for 2's complement
 		:Loop
 			CPY.INV(, RAM[G2L])
-			SUM(RAM[G2L], Y)
+			SUM(RAM[G2L], Z)
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
 		CLR()
@@ -284,7 +291,9 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 
 		# END IF
 		SET(FLAG)
-
+		
+		# ============================ Combining them ============================
+		
 		# G1T = G1T + G2L (This is an approximation of G1T = SQRT(G1T^2 + G2L^2))
 		LDREG($0,0)
 		:Loop
@@ -310,15 +319,14 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 		CPYREG($3,$4)
 		LDREG($0,DEPTH)
 		:Loop
-			ADDREG($0,-1)
 			CPY(NEWS, RAM[G1T])
 			SAVE($3,COLUMNS)
 			ADDREG($3,PLANE_HEIGHT)
+			ADDREG($0,-1)
 			BNE($0,0,:Loop)
 		
 		ADDREG($4, 1) # Next column
 		ADDREG($6, -1)
-		ADDREG($1, NBR_E) # Next element
 		BNE($6, 0, :DoCol)
 	ADDREG($1, NBR_E) # Skip east dummy
 	ADDREG($7, -1)

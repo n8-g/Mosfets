@@ -98,6 +98,7 @@ static symbol_t labels[512];
 static int nconstants;
 static int nlabels;
 static int loc;
+static int nextaddr;
 
 int print_usage(char* filename)
 {
@@ -263,7 +264,23 @@ int parse_instr(FILE* out)
 			strcpy(constants[nconstants].name,lex);
 			if (parse_number(lex,&constants[nconstants].val))
 				return -1;
+			printf("CONST %s = @%d\n",constants[nconstants].name,constants[nconstants].val);
+			
 			++nconstants;
+		}
+		else if (!strcmp(lex,"VAR"))
+		{
+			int width;
+			if (next_token(NULL,lex) != PUNC || expect("[",lex)) return -1;
+			if (parse_number(lex,&width))
+				return -1;
+			if (expect("]",lex)) return -1;
+			next_token(NULL,lex);
+			strcpy(constants[nconstants].name,lex);
+			constants[nconstants].val = nextaddr;
+			printf("%s@%d\n",constants[nconstants].name,constants[nconstants].val);
+			++nconstants;
+			nextaddr += width;
 		}
 		return 0; // Stop processing
 	}

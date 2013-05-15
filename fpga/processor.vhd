@@ -587,8 +587,8 @@ begin
 				else
 					-- Update addresses
 					case id_ctrl is
-						when SAVE => id_addr <= id_addr + id_instr(SAVE_STRIDE_OFF+7 downto SAVE_STRIDE_OFF);
-						when LOAD => id_addr <= id_addr + id_instr(LOAD_STRIDE_OFF+7 downto LOAD_STRIDE_OFF);
+						when SAVE => id_addr <= id_addr + id_instr(SAVE_STRIDE_OFF+3 downto SAVE_STRIDE_OFF);
+						when LOAD => id_addr <= id_addr + id_instr(LOAD_STRIDE_OFF+3 downto LOAD_STRIDE_OFF);
 						when OTHERS =>
 					end case;
 				end if;
