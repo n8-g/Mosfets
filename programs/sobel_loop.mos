@@ -307,13 +307,13 @@ LDREG($1, IMG+NBR_S) # Offset to first row
 		SET(FLAG)
 
 		# Save G1T/2 out
-		CPYREG($2,$4)
+		CPYREG($3,$4)
 		LDREG($0,DEPTH)
 		:Loop
 			ADDREG($0,-1)
 			CPY(NEWS, RAM[G1T])
-			SAVE($2,COLUMNS)
-			ADDREG($2,PLANE_HEIGHT)
+			SAVE($3,COLUMNS)
+			ADDREG($3,PLANE_HEIGHT)
 			BNE($0,0,:Loop)
 		
 		ADDREG($4, 1) # Next column
