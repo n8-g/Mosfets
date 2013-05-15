@@ -75,10 +75,11 @@ LDREG($2, DEPTH) # Depth counter
 
 # Last row is a dummy row
 LDREG($2, 0)
-SET(RAM[$1+IMG])
-ADDREG($2, 1)
-BNE($2, NBR_S, -2)
-ADDREG($1, 1)
+:Loop
+	SET(RAM[$1+IMG])
+	ADDREG($2, 1)
+	ADDREG($1, 1)
+	BNE($2, NBR_S, -3)
 
 LDREG($7, HEIGHT) # Row counter
 LDREG($6, WIDTH) # Column counter
