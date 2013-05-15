@@ -258,7 +258,12 @@ int parse_instr(FILE* out)
 			++nlabels;
 		return 0;
 	}
-	if (!strcmp(lex,"LOAD"))
+	if (!strcmp(lex,"NOP"))
+	{
+		write_instr(out,instr);
+		return 0;
+	}
+	else if (!strcmp(lex,"LOAD"))
 		ctrl = LOAD;
 	else if (!strcmp(lex,"SAVE"))
 		ctrl = SAVE;

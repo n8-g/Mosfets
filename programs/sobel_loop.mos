@@ -42,8 +42,8 @@ CLR(Z)
 LDREG($1, 0)
 :Loop
 	SET(RAM[$1+IMG])
-	ADDREG($1, 1)
-	BNE($1, NBR_S, :Loop)
+	BNE($1, NBR_S + -1, :Loop)
+	ADDREG($1, 1) # Branch delay
 
 LDREG($5, 0) # Row source address
 LDREG($2, DEPTH) # Depth counter
@@ -61,23 +61,25 @@ LDREG($2, DEPTH) # Depth counter
 		:LoadCol
 			LOAD(RAM[$1+IMG], $4+0, WIDTH)
 			ADDREG($1, NBR_E)
-			ADDREG($4, 1)
 			ADDREG($6, 1)
 			BNE($6, WIDTH, :LoadCol)
+			ADDREG($4, 1) # Branch delay
 
 		SET(RAM[$1+IMG]) # Last column is a dummy column
 		ADDREG($1, NBR_E)
-		ADDREG($5, 0x20)
 		ADDREG($7, 1)
 		BNE($7, HEIGHT, :LoadRow)
+		ADDREG($5, 0x20) # Branch delay
 	BNE($2, 0, :LoadDepth)
+	NOP
+	
 
 # Last row is a dummy row
 LDREG($2, 0)
 SET(RAM[$1+IMG])
-ADDREG($1, 1)
 ADDREG($2, 1)
 BNE($2, NBR_S, -2)
+ADDREG($1, 1)
 
 LDREG($7, HEIGHT) # Row counter
 LDREG($6, WIDTH) # Column counter
@@ -136,8 +138,8 @@ ADDREG($1, NBR_S) # Offset to first real row
 			CPY(RAM[MY_SE], EAST)
 			CPY(RAM[MY_SW], WEST)
 
-			ADDREG($1, 1) # Next depth
 			BNE($2, 0, :LoadPlane) 
+			ADDREG($1, 1) # Next depth
 
 		# ======================== G1 ===========================
 		# G1T = NE + NW
@@ -148,6 +150,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			CPY(RAM[G1T], X)
 			ADDREG($0, 1)
 			BNE($0, DEPTH, :Loop)
+			NOP
 		CLR()
 		SUM(RAM[G1T], Z)
 
@@ -158,6 +161,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G1T+1], RAM[G1T+1])
 			ADDREG($0, 1)
 			BNE($0, DEPTH, :Loop)
+			NOP
 		CLR()
 		SUM(RAM[G1T+1], Z)
 
@@ -169,6 +173,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			CPY(RAM[G1B], X)
 			ADDREG($0, 1)
 			BNE($0,DEPTH,:Loop)
+			NOP
 		CLR()
 		SUM(RAM[G1B], Z)
 
@@ -179,6 +184,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G1B+1], RAM[G1B+1])
 			ADDREG($0, 1)
 			BNE($0,DEPTH,:Loop)
+			NOP
 		CLR()
 		SUM(RAM[G1B+1], Z)
 
@@ -191,6 +197,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G1T], RAM[G1T])
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
+			NOP
 
 		# IF (G1T < 0)
 		CLR()
@@ -203,6 +210,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G1T], Y)
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
+			NOP
 		CLR()
 		SUM(, Z) # Discard carry
 
@@ -218,6 +226,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			CPY(RAM[G2L], X)
 			ADDREG($0, 1)
 			BNE($0, DEPTH, :Loop)
+			NOP
 		CLR()
 		SUM(RAM[G2L], Z)
 
@@ -228,6 +237,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G2L+1], RAM[G2L+1])
 			ADDREG($0, 1)
 			BNE($0, DEPTH, :Loop)
+			NOP
 		CLR()
 		SUM(RAM[G2L+1], Z)
 
@@ -239,6 +249,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			CPY(RAM[G2R], X)
 			ADDREG($0, 1)
 			BNE($0,DEPTH,:Loop)
+			NOP
 		CLR()
 		SUM(RAM[G2R], Z)
 
@@ -249,6 +260,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G2R+1], RAM[G2R+1])
 			ADDREG($0, 1)
 			BNE($0,DEPTH,:Loop)
+			NOP
 		CLR()
 		SUM(RAM[G2R+1], Z)
 
@@ -261,6 +273,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G2L], RAM[G2L])
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
+			NOP
 
 		# IF (G2L < 0)
 		CLR()
@@ -273,6 +286,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G2L], Y)
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
+			NOP
 		CLR()
 		SUM(, Z) # Discard carry
 
@@ -286,6 +300,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SUM(RAM[G1T], RAM[G1T])
 			ADDREG($0,1)
 			BNE($0,DEPTH+2,:Loop)
+			NOP
 		CLR()
 		SUM(RAM[G1T], Z)
 
@@ -297,6 +312,7 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SET(RAM[G1T])
 			ADDREG($0,1)
 			BNE($0,DEPTH+1,:Loop)
+			NOP
 		# END IF
 		SET(FLAG)
 
@@ -309,12 +325,13 @@ ADDREG($1, NBR_S) # Offset to first real row
 			SAVE($2,WIDTH)
 			ADDREG($2,0x40)
 			BNE($0,0,:Loop)
+			NOP
 		
 		ADDREG($4, 1)
-		ADDREG($1, NBR_E) # Next element
 		ADDREG($6, -1)
 		BNE($6, 0, :DoCol)
+		ADDREG($1, NBR_E) # Next element
 	ADDREG($1, NBR_E) # Skip east dummy
 	ADDREG($7, -1)
-	ADDREG($5, 0x20)
 	BNE($7, 0, :DoRow)
+	ADDREG($5, 0x20)
