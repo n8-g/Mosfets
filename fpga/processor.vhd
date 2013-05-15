@@ -143,6 +143,8 @@ architecture Behavioral of processor is
 	
 	signal img_in : std_logic_vector(size-1 downto 0);
 
+	signal if_pe_ram_addr : std_logic_vector(7 downto 0);
+	signal id_pe_ram_addr : std_logic_vector(7 downto 0);
 	signal pe_ce : std_logic;
 	signal pe_clrcar : std_logic;
 	signal pe_aluop : std_logic_vector(2 downto 0);
@@ -172,8 +174,16 @@ architecture Behavioral of processor is
 	signal ex_addr : std_logic_vector(7 downto 0); -- Data cache address to write
 	signal ex_we : std_logic; -- Data cache enable
 	signal pc : std_logic_vector(pclen-1 downto 0);
+	signal next_pc : std_logic_vector(pclen-1 downto 0);
 	signal instr_counter : std_logic_vector(7 downto 0);
 	signal instr_cycles : integer;
+	
+	type reg_file is array(7 downto 0) of std_logic_vector(7 downto 0);
+	signal registers : reg_file;
+	signal srcreg : std_logic_vector(2 downto 0);
+	signal dstreg : std_logic_vector(2 downto 0);
+	signal srcreg_val : std_logic_vector(7 downto 0);
+	signal offset : std_logic_vector(pclen-1 downto 0);
 begin
 	-- Instantiate the Unit Under Test (UUT)
    pe_arr: entity work.pe_array generic map (size=>size)
@@ -209,7 +219,7 @@ begin
 			a_en => '1',
 			a_we => ld_instr_we,
 			a_dout => open,
-			b_addr => pc,
+			b_addr => next_pc,
 			b_dout => if_instr,
 			b_en => fetch_instr,
 			b_we => '0',
@@ -455,8 +465,11 @@ begin
 	west <= borderw;
 	south <= img_in when load_image = '1' else borders;
 	
+	
 	-- Processing Element Configuration
-	process(ex_instr,ex_ctrl)
+	
+	-- Values based on ctrl
+	process(ex_instr,ex_ctrl,registers)
 	begin
 		-- Defaults
 		pe_ce <= '0';
@@ -466,7 +479,6 @@ begin
 		pe_invout <= '0';
 		pe_gpregsel <= (others=>'0');
 		pe_insel <= IN_S;
-		pe_ram_addr <= (others=>'0');
 		pe_set_ram <= '0';
 		pe_set_flag <= '0';
 		pe_set_news <= '0';
@@ -482,13 +494,11 @@ begin
 				pe_invout <= ex_instr(INVOUT_OFF);
 				pe_gpregsel <= ex_instr(GPREG_OFF+1 downto GPREG_OFF);
 				pe_insel <= ex_instr(INSEL_OFF+2 downto INSEL_OFF);
-				pe_ram_addr <= ex_instr(RAMADDR_OFF+7 downto RAMADDR_OFF);
 				pe_set_ram <= ex_instr(SETRAM_OFF);
 				pe_set_flag <= ex_instr(SETFLAG_OFF);
 				pe_set_news <= ex_instr(SETNEWS_OFF);
 			when LOAD =>
 				pe_ce <= '1';
-				pe_ram_addr <= ex_instr(LOAD_RAMADDR_OFF+7 downto LOAD_RAMADDR_OFF);
 				pe_set_ram <= '1';
 				pe_set_news <= '1';
 				load_image <= '1';
@@ -509,10 +519,19 @@ begin
 		end case;
 	end process;
 	
+	offset <= if_instr(OFFSET_OFF+pclen-1 downto OFFSET_OFF);
+	next_pc <= (others=>'0') when instr_valid = '0' else
+					pc + offset when if_ctrl = BNE and srcreg_val /= if_instr(IMMEDIATE_OFF + 7 downto IMMEDIATE_OFF) else
+					pc + 1;
+	
 	-- Controller process
+	srcreg <= if_instr(SRCREG_OFF+2 downto SRCREG_OFF);
+	dstreg <= if_instr(DSTREG_OFF+2 downto DSTREG_OFF);
+	srcreg_val <= registers(conv_integer(srcreg));
 	fetch_instr <= '1' when instr_valid = '0' or (instr_counter = instr_cycles and if_ctrl /= HALT) else '0';
 	id_halted <= '1' when id_ctrl = HALT else '0';
 	ex_halted <= '1' when ex_ctrl = HALT else '0';
+	if_pe_ram_addr <= if_instr(RAMADDR_OFF+7 downto RAMADDR_OFF) + srcreg_val;
 	process(proc_rst,clk)
 		variable instr_fetched : std_logic;
 	begin
@@ -530,6 +549,7 @@ begin
 			ex_addr <= (others=>'0');
 			id_addr <= (others => '0');
 			instr_valid <= '0';
+			registers <= (others=>(others=>'0'));
 		elsif (clk'event and clk = '1') then
 			if (ex_halted = '0') then -- Execution stage actions
 				case ex_ctrl is
@@ -544,15 +564,23 @@ begin
 					when OTHERS =>
 				end case;
 			end if;
+			pe_ram_addr <= id_pe_ram_addr;
+			id_pe_ram_addr <= if_pe_ram_addr; -- RAM address is calculated in the IF stage and passed along the pipeline
 			ex_instr <= id_instr;
 			ex_addr <= id_addr;
 			if (ce = '1') then -- Processor running
 				id_instr <= if_instr;
+				case if_ctrl is -- IF stage operations: handling registers
+					when LDREG => registers(conv_integer(dstreg)) <= if_instr(IMMEDIATE_OFF+7 downto IMMEDIATE_OFF);
+					when CPYREG => registers(conv_integer(dstreg)) <= srcreg_val;
+					when ADDREG => registers(conv_integer(dstreg)) <= registers(conv_integer(dstreg)) + if_instr(IMMEDIATE_OFF+7 downto IMMEDIATE_OFF);
+					when OTHERS =>
+				end case;
 				if (instr_counter = 0) then
 					-- Load information from the new instruction
 					case if_ctrl is
-						when LOAD => id_addr <= if_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF); -- Setup decode stage address
-						when SAVE => id_addr <= if_instr(SAVE_IMGADDR_OFF+7 downto SAVE_IMGADDR_OFF); -- Setup decode stage address
+						when LOAD => id_addr <= if_instr(LOAD_IMGADDR_OFF+7 downto LOAD_IMGADDR_OFF) + registers(conv_integer(dstreg)); -- Setup decode stage address
+						when SAVE => id_addr <= if_instr(SAVE_IMGADDR_OFF+7 downto SAVE_IMGADDR_OFF) + registers(conv_integer(dstreg)); -- Setup decode stage address
 						when HALT => halted <= '1';
 						when OTHERS =>
 					end case;
@@ -567,7 +595,7 @@ begin
 				if (fetch_instr = '1') then -- We're going to fetch a new instruction
 					instr_valid <= '1';
 					instr_counter <= (others =>'0'); -- Reset counter
-					pc <= pc + '1';
+					pc <= next_pc;
 				else
 					instr_counter <= instr_counter + '1';
 				end if;

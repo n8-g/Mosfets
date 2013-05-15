@@ -19,31 +19,36 @@
 .CONST W_N 0x42
 .CONST W_S 0x43
 
-.CONST WIDTH 2
-.CONST HEIGHT 2
-.CONST PIECES 4
+.CONST COLUMNS 2
+.CONST ROWS 2
 .CONST DEPTH 3
 .CONST IMG 0x80
+.CONST ROW_WIDTH 2+COLUMNS # include dummy elements
+.CONST ROW_HEIGHT 16*COLUMNS
+.CONST PLANE_HEIGHT ROW_HEIGHT*ROWS
 
-.CONST NBR_N -12
-.CONST NBR_NE -9
-.CONST NBR_E 3
-.CONST NBR_SE 15
-.CONST NBR_S 12
-.CONST NBR_SW 9
-.CONST NBR_W -3
-.CONST NBR_NW -15
+.CONST NBR_N DEPTH*(0-ROW_WIDTH)
+.CONST NBR_NE DEPTH*(1-ROW_WIDTH)
+.CONST NBR_E DEPTH*1
+.CONST NBR_SE DEPTH*(1+ROW_WIDTH)
+.CONST NBR_S DEPTH*(ROW_WIDTH)
+.CONST NBR_SW DEPTH*(ROW_WIDTH-1)
+.CONST NBR_W DEPTH*-1
+.CONST NBR_NW DEPTH*-ROW_WIDTH
 
 # For two's complement,  we need to add 001
 SET(Y)
 CLR(Z)
+
+# This is our default offset, and should only be changed when doing summation!
+LDREG($0,0)
 
 # First row is a dummy row
 LDREG($1, 0)
 :Loop
 	SET(RAM[$1+IMG])
 	ADDREG($1, 1) # Branch delay
-	BNE($1, NBR_S + -1, :Loop)
+	BNE($1, NBR_S - 1, :Loop)
 
 LDREG($5, 0) # Row source address
 LDREG($2, DEPTH) # Depth counter
@@ -59,17 +64,17 @@ LDREG($2, DEPTH) # Depth counter
 		LDREG($6, 0) # Col counter
 		CPYREG($4, $5) # Piece source address
 		:LoadCol
-			LOAD(RAM[$1+IMG], $4+0, WIDTH)
+			LOAD(RAM[$1+IMG], $4+0, COLUMNS)
 			ADDREG($1, NBR_E)
 			ADDREG($6, 1)
-			ADDREG($4, 1) # Branch delay
-			BNE($6, WIDTH, :LoadCol)
+			ADDREG($4, 1)
+			BNE($6, COLUMNS, :LoadCol)
 
 		SET(RAM[$1+IMG]) # Last column is a dummy column
 		ADDREG($1, NBR_E)
 		ADDREG($7, 1)
-		ADDREG($5, 0x20) # Branch delay
-		BNE($7, HEIGHT, :LoadRow)
+		ADDREG($5, ROW_HEIGHT)
+		BNE($7, ROWS, :LoadRow)
 	BNE($2, 0, :LoadDepth)
 	
 
@@ -79,18 +84,17 @@ LDREG($2, 0)
 	SET(RAM[$1+IMG])
 	ADDREG($2, 1)
 	ADDREG($1, 1)
-	BNE($2, NBR_S, -3)
+	BNE($2, NBR_S, :Loop)
 
-LDREG($7, HEIGHT) # Row counter
-LDREG($6, WIDTH) # Column counter
+LDREG($7, ROWS) # Row counter
 LDREG($5, 0) # Row destination address
-LDREG($1, IMG) # Offset to first dummy piece
-ADDREG($1, NBR_S) # Offset to first real row
+LDREG($1, IMG+NBR_S) # Offset to first row
 
 :DoRow
+	LDREG($6, COLUMNS) # Column counter
+	CPYREG($4,$5) # Set destination to start of row
 	ADDREG($1, NBR_E) # Skip west dummy
 	:DoCol
-		CPYREG($4,$5)
 		LDREG($2, DEPTH)
 		:LoadPlane
 			ADDREG($2, -1)
@@ -308,15 +312,15 @@ ADDREG($1, NBR_S) # Offset to first real row
 		:Loop
 			ADDREG($0,-1)
 			CPY(NEWS, RAM[G1T])
-			SAVE($2,WIDTH)
-			ADDREG($2,0x40)
+			SAVE($2,COLUMNS)
+			ADDREG($2,PLANE_HEIGHT)
 			BNE($0,0,:Loop)
 		
-		ADDREG($4, 1)
+		ADDREG($4, 1) # Next column
 		ADDREG($6, -1)
 		ADDREG($1, NBR_E) # Next element
 		BNE($6, 0, :DoCol)
 	ADDREG($1, NBR_E) # Skip east dummy
 	ADDREG($7, -1)
-	ADDREG($5, 0x20)
+	ADDREG($5, ROW_HEIGHT)
 	BNE($7, 0, :DoRow)

@@ -63,22 +63,22 @@ enum aluop_t
 
 enum word_offset_t
 {
-	CLRCAR_OFF = 0,
-	ALU_OFF = 1,
-	INVACC_OFF = 4,
-	INVOUT_OFF = 5,
-	GPREG_OFF = 6,
-	INSEL_OFF = 8,
-	FLAG_OFF = 11,
-	RAM_OFF = 12,
-	NEWS_OFF = 13,
-	ADDR_OFF = 14,
-	LOAD_IMGADDR_OFF = 0,
-	SAVE_IMGADDR_OFF = 0,
-	STRIDE_OFF = 8,
 	BDR_OFF = 0,
+	ADDR_OFF = 0,
 	IMMEDIATE_OFF = 0,
 	OFFSET_OFF = 8,
+	STRIDE_OFF = 8,
+	CLRCAR_OFF = 8,
+	ALU_OFF = 9,
+	LOAD_IMGADDR_OFF = 12,
+	SAVE_IMGADDR_OFF = 12,
+	INVACC_OFF = 12,
+	INVOUT_OFF = 13,
+	GPREG_OFF = 14,
+	INSEL_OFF = 16,
+	FLAG_OFF = 19,
+	RAM_OFF = 20,
+	NEWS_OFF = 21,
 	SRCREG_OFF = 25,
 	DSTREG_OFF = 22,
 	CTRL_OFF = 28
@@ -121,7 +121,7 @@ int next_token(int* value, char* buffer)
 	while (isspace(*lexer_ptr)) ++lexer_ptr;
 	if (*lexer_ptr == '\0')
 		return NONE;
-	if (isdigit(*lexer_ptr) || *lexer_ptr == '-')
+	if (isdigit(*lexer_ptr))
 	{
 		char* ptr;
 		int v = strtol(lexer_ptr,&ptr,0);
@@ -184,13 +184,36 @@ int lookup_symbol(const symbol_t* symbols, int nsymbols, int* val, const char* n
 int parse_number(char* lex, int* val)
 {
 	*val = 0;
+	char op = '+';
 	do {
+		int negative = 0;
 		int v;
-		if (next_token(&v,lex) != INT && lookup_symbol(constants,nconstants,&v,lex,"constant"))
-			return -1;
+		int t = next_token(&v,lex);
+		if (*lex == '-') // Negation
+			negative = 1, t = next_token(&v,lex);
+		if (t != INT)
+		{
+			if (*lex == '(') // Grouping
+			{
+				if (parse_number(lex,&v))
+					return -1;
+				if (*lex != ')')
+					return error("Expected: ')'");
+			}
+			else if (lookup_symbol(constants,nconstants,&v,lex,"constant"))
+				return -1;
+		}
+		if (negative) v = -v;
+		switch(op)
+		{
+			case '+': *val += v; break;
+			case '-': *val -= v; break;
+			case '*': *val *= v; break;
+			case '/': *val /= v; break;
+		}
 		next_token(NULL,lex);
-		*val += v;
-	} while (*lex == '+');
+		op = *lex;
+	} while (op == '+' || op == '*' || op == '-' || op == '/');
 	return 0;
 }
 
@@ -238,11 +261,8 @@ int parse_instr(FILE* out)
 		{
 			next_token(NULL,lex);
 			strcpy(constants[nconstants].name,lex);
-			do {
-				if (next_token(&val,lex) != INT && lookup_symbol(constants,nconstants,&stride,lex,"constant"))
-					return -1;
-				constants[nconstants].val += val;
-			} while (next_token(NULL,lex) == PUNC && *lex == '+');
+			if (parse_number(lex,&constants[nconstants].val))
+				return -1;
 			++nconstants;
 		}
 		return 0; // Stop processing

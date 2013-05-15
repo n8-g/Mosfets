@@ -44,29 +44,36 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
 package instr_word is
-	constant CLRCAR_OFF : integer := 0;
-	constant ALU_OFF : integer := 1;
-	constant INVACC_OFF : integer := 4;
-	constant INVOUT_OFF : integer := 5;
-	constant GPREG_OFF : integer := 6;
-	constant INSEL_OFF : integer := 8;
-	constant RAMADDR_OFF : integer := 11;
+	constant BDR_OFF : integer := 0;
+	constant IMMEDIATE_OFF : integer := 0;
+	constant RAMADDR_OFF : integer := 0;
+	constant OFFSET_OFF : integer := 8;
+	constant LOAD_STRIDE_OFF : integer := 8;
+	constant SAVE_STRIDE_OFF : integer := 8;
+	constant CLRCAR_OFF : integer := 8;
+	constant ALU_OFF : integer := 9;
+	constant LOAD_IMGADDR_OFF : integer := 12;
+	constant SAVE_IMGADDR_OFF : integer := 12;
+	constant INVACC_OFF : integer := 12;
+	constant INVOUT_OFF : integer := 13;
+	constant GPREG_OFF : integer := 14;
+	constant INSEL_OFF : integer := 16;
 	constant SETFLAG_OFF : integer := 19;
 	constant SETRAM_OFF : integer := 20;
 	constant SETNEWS_OFF : integer := 21;
 	
-	constant LOAD_RAMADDR_OFF : integer := 0;
-	constant LOAD_IMGADDR_OFF : integer := 8;
-	constant SAVE_IMGADDR_OFF : integer := 8;
-	constant LOAD_STRIDE_OFF : integer := 16;
-	constant SAVE_STRIDE_OFF : integer := 16;
+	constant DSTREG_OFF : integer := 22;
+	constant SRCREG_OFF : integer := 25;
 	constant CTRL_OFF : integer := 28;
-	constant BDR_OFF : integer := 0;
 	
 	constant NORMAL : std_logic_vector(3 downto 0) := "0000";
 	constant LOAD : std_logic_vector(3 downto 0) := "0001";
 	constant SAVE : std_logic_vector(3 downto 0) := "0010";
 	constant BDR : std_logic_vector(3 downto 0) := "0011";
+	constant LDREG : std_logic_vector(3 downto 0) := "0100";
+	constant ADDREG : std_logic_vector(3 downto 0) := "0101";
+	constant CPYREG : std_logic_vector(3 downto 0) := "0110";
+	constant BNE : std_logic_vector(3 downto 0) := "0111";
 	constant HALT : std_logic_vector(3 downto 0) := "1111";
 	
 	constant BDRN : std_logic_vector(1 downto 0) := "00";
